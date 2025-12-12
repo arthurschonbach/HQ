@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EXECUTIVE_OS_V2.3</title>
+    <style>
+        /* --- THEME ENGINE --- */
+        :root {
+            --bg: #0a0a0a;
+            --surface: #141414;
+            --surface-hover: #1f1f1f;
+            --border: #333;
+            --text-main: #e5e5e5;
+            --text-dim: #888;
+            --accent: #00ff41; /* Cyberpunk Green */
+            --alert: #ff3333;
+            --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            --radius: 4px;
+        }
+
+        body.light-mode {
+            --bg: #f0f0f0;
+            --surface: #ffffff;
+            --surface-hover: #f5f5f5;
+            --border: #ccc;
+            --text-main: #111;
+            --text-dim: #666;
+            --accent: #0066cc;
+        }
+
+        /* --- BASE --- */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            font-size: 13px;
+        }
+
+        /* --- LAYOUT --- */
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 10px;
+            display: grid;
+            gap: 20px;
+        }
+
+        /* Desktop: 3 Columns */
+        @media (min-width: 1000px) {
+            .app-container {
+                grid-template-columns: 400px 1fr 300px; /* Planning | News | Weather */
+                grid-template-areas: "plan news weather";
+                padding: 40px 20px;
+                align-items: start;
+            }
+        }
+        /* Mobile: 1 Column */
+        @media (max-width: 999px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-areas: 
+                    "weather"
+                    "plan"
+                    "news";
+            }
+        }
+
+        /* --- COMPONENTS --- */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg);
+            position: sticky; top: 0; z-index: 10;
+        }
+        .header h2 { margin: 0; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); }
+        .refresh-btn { cursor: pointer; font-size: 16px; background: none; border: none; color: var(--text-dim); padding: 0 5px; }
+        .refresh-btn:hover { color: var(--text-main); }
+
+        /* --- PLANNING MODULE --- */
+        .plan-input-area {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .input-row { display: flex; gap: 10px; }
+        
+        input {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            font-family: inherit;
+            padding: 10px;
+            border-radius: var(--radius);
+            font-size: 12px;
+        }
+        input:focus { border-color: var(--accent); outline: none; }
+        input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
+        
+        .block-list { padding: 0; margin: 0; list-style: none; min-height: 200px; }
+        
+        /* Normal Mode Row */
+        .time-block {
+            display: flex;
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+            transition: background 0.2s;
+            group: 'row';
+        }
+        .time-block:last-child { border-bottom: none; }
+        .time-block:hover { background: var(--surface-hover); }
+        
+        /* Edit Mode Row */
+        .time-block.editing-mode {
+            background: var(--surface-hover);
+            padding: 10px;
+            align-items: flex-start;
+        }
+
+        .tb-time-col {
+            display: flex;
+            flex-direction: column;
+            width: 70px;
+            flex-shrink: 0;
+            font-size: 12px;
+            font-feature-settings: "tnum"; 
+        }
+        .t-start { color: var(--accent); font-weight: bold; }
+        .t-end { color: var(--text-dim); font-size: 10px; margin-top: 2px; }
+
+        .tb-task { flex: 1; margin: 0 15px; word-break: break-word; line-height: 1.4; }
+        
+        .tb-actions { display: flex; gap: 8px; }
+        .tb-btn { 
+            color: var(--text-dim); 
+            cursor: pointer; 
+            font-size: 14px; 
+            padding: 4px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+        }
+        .tb-btn:hover { color: var(--text-main); border-color: var(--border); }
+        .tb-del:hover { color: var(--alert); border-color: var(--alert); }
+
+        /* Edit Inputs Styles */
+        .edit-input-time { 
+            width: 70px; 
+            margin-bottom: 4px; 
+            padding: 4px; 
+            height: 25px;
+        }
+        .edit-input-task { 
+            flex: 1; 
+            margin: 0 10px; 
+            padding: 8px;
+        }
+
+        /* --- WEATHER MODULE --- */
+        .weather-current { padding: 20px; text-align: center; border-bottom: 1px solid var(--border); }
+        .weather-loc { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 10px; }
+        .temp-big { font-size: 42px; font-weight: 700; line-height: 1; margin-bottom: 5px; }
+        
+        .weather-today-segments { display: flex; border-bottom: 1px solid var(--border); }
+        .segment { flex: 1; text-align: center; padding: 15px 5px; border-right: 1px solid var(--border); }
+        .segment:last-child { border: none; }
+        .seg-label { font-size: 9px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 5px; }
+        .seg-temp { font-weight: bold; font-size: 13px; }
+        
+        .forecast-row { display: flex; justify-content: space-between; padding: 10px 20px; border-bottom: 1px solid var(--border); font-size: 12px; }
+        .forecast-row:last-child { border: none; }
+        .icon-svg { width: 24px; height: 24px; fill: var(--text-main); margin: 5px auto; display: block; }
+
+        /* --- NEWS MODULE --- */
+        .news-container { max-height: 80vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) var(--bg); }
+        .news-item { padding: 15px 20px; border-bottom: 1px solid var(--border); }
+        .news-source { 
+            font-size: 9px; 
+            background: var(--border); 
+            color: var(--text-main); 
+            padding: 2px 6px; 
+            border-radius: 2px;
+            display: inline-block; 
+            margin-bottom: 6px; 
+        }
+        .news-title { 
+            display: block; 
+            font-size: 14px; 
+            font-weight: 600; 
+            color: var(--text-main); 
+            text-decoration: none; 
+            margin-bottom: 6px; 
+            line-height: 1.4; 
+        }
+        .news-title:hover { color: var(--accent); }
+        .news-meta { font-size: 10px; color: var(--text-dim); display: flex; justify-content: space-between; }
+        
+        /* --- UTILS --- */
+        .btn-main {
+            background: var(--border);
+            color: var(--text-main);
+            border: none;
+            padding: 0 20px;
+            cursor: pointer;
+            border-radius: var(--radius);
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+        .btn-main:hover { background: var(--accent); color: #000; }
+        
+        .settings-bar {
+            grid-area: settings;
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 20px;
+            font-size: 10px;
+            color: var(--text-dim);
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="settings-bar">
+        <span id="clock">--:--:--</span>
+        <span style="cursor:pointer" onclick="document.body.classList.toggle('light-mode')">[INVERT COLORS]</span>
+    </div>
+
+    <div class="app-container">
+        
+        <!-- SECTION 1: PLANNING (24h) -->
+        <div class="card" style="grid-area: plan;">
+            <div class="header">
+                <h2>Time Blocking (24H)</h2>
+                <button class="refresh-btn" onclick="clearPlan()">×</button>
+            </div>
+            <div class="plan-input-area">
+                <div class="input-row">
+                    <!-- START TIME -->
+                    <div style="flex:1">
+                        <label style="font-size:9px; color:var(--text-dim); display:block; margin-bottom:4px;">START</label>
+                        <input type="time" id="plan-start" style="width: 100%;" onchange="autoFillEnd()">
+                    </div>
+                    <!-- END TIME -->
+                    <div style="flex:1">
+                        <label style="font-size:9px; color:var(--text-dim); display:block; margin-bottom:4px;">END</label>
+                        <input type="time" id="plan-end" style="width: 100%;">
+                    </div>
+                </div>
+                <div class="input-row">
+                    <input type="text" id="plan-task" placeholder="Objective..." style="flex:1;" onkeypress="if(event.key==='Enter') addBlock()">
+                    <button class="btn-main" onclick="addBlock()">ADD</button>
+                </div>
+            </div>
+            <div id="block-list" class="block-list">
+                <!-- Blocks inserted here -->
+            </div>
+        </div>
+
+        <!-- SECTION 2: WEATHER -->
+        <div class="card" style="grid-area: weather;">
+            <div class="header">
+                <h2>Atmosphere</h2>
+                <button class="refresh-btn" onclick="initWeather()">↻</button>
+            </div>
+            <div style="padding: 10px; border-bottom: 1px solid var(--border);">
+                <input type="text" id="city-input" placeholder="City..." value="Paris" 
+                       style="width:100%; text-align:center; border:none; background:transparent; font-weight:bold; letter-spacing:1px;" 
+                       onchange="initWeather()">
+            </div>
+            
+            <div class="weather-current" id="w-current">
+                <div class="loading">Scanning...</div>
+            </div>
+
+            <div class="weather-today-segments" id="w-segments"></div>
+            <div id="w-forecast"></div>
+        </div>
+
+        <!-- SECTION 3: NEWS -->
+        <div class="card news-container" style="grid-area: news;">
+            <div class="header">
+                <h2>Intel Feed</h2>
+                <button class="refresh-btn" onclick="initNews()">↻</button>
+            </div>
+            <div id="news-feed">
+                <div style="padding:20px; color:var(--text-dim)">Decrypting sources...</div>
+            </div>
+        </div>
+
+    </div>
+
+<script>
+    // --- CONFIG & UTILS ---
+    const PROXY = "https://shy-block-4ddc.arthur-schonbach.workers.dev/?url=";
+    
+    const updateClock = () => {
+        const d = new Date();
+        document.getElementById('clock').innerText = 
+            d.toLocaleDateString() + ' ' + d.toLocaleTimeString('en-GB', { hour12: false });
+    };
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // --- ICONS ---
+    const ICONS = {
+        sun: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" fill="none"/><line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2"/><line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2"/><line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="2"/><line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="2"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2"/></svg>',
+        cloud: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+        rain: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M16 13v8M8 13v8M12 15v8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+        snow: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M8 13v8M16 13v8M12 13v8" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/></svg>',
+        edit: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
+        check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+    };
+
+    function getWeatherIcon(code) {
+        if (code <= 1) return ICONS.sun;
+        if (code <= 48) return ICONS.cloud;
+        if (code <= 67) return ICONS.rain;
+        if (code <= 77) return ICONS.snow;
+        if (code <= 86) return ICONS.rain;
+        return ICONS.rain;
+    }
+
+    // --- MODULE 1: PLANNING (24H Strict + Editable) ---
+    let blocks = JSON.parse(localStorage.getItem('exec_blocks_v2')) || [];
+    let editingIndex = -1; // -1 means nothing is being edited
+
+    function autoFillEnd() {
+        const start = document.getElementById('plan-start').value;
+        if(!start) return;
+        const [h, m] = start.split(':').map(Number);
+        const d = new Date(); d.setHours(h + 1); d.setMinutes(m);
+        document.getElementById('plan-end').value = 
+            String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    }
+
+    function renderBlocks() {
+        const list = document.getElementById('block-list');
+        list.innerHTML = '';
+        
+        // Ensure chronological order
+        blocks.sort((a, b) => a.start.localeCompare(b.start));
+
+        blocks.forEach((b, index) => {
+            const div = document.createElement('div');
+            
+            if (index === editingIndex) {
+                // EDIT MODE
+                div.className = 'time-block editing-mode';
+                div.innerHTML = `
+                    <div class="tb-time-col">
+                        <input type="time" class="edit-input-time" id="edit-start-${index}" value="${b.start}">
+                        <input type="time" class="edit-input-time" id="edit-end-${index}" value="${b.end}">
+                    </div>
+                    <input type="text" class="edit-input-task" id="edit-task-${index}" value="${b.text}" 
+                           onkeypress="if(event.key==='Enter') saveBlock(${index})">
+                    <div class="tb-actions">
+                        <div class="tb-btn" style="color:var(--accent)" onclick="saveBlock(${index})" title="Save">${ICONS.check}</div>
+                    </div>
+                `;
+            } else {
+                // VIEW MODE
+                div.className = 'time-block';
+                div.innerHTML = `
+                    <div class="tb-time-col">
+                        <span class="t-start">${b.start}</span>
+                        <span class="t-end">${b.end}</span>
+                    </div>
+                    <div class="tb-task">${b.text}</div>
+                    <div class="tb-actions">
+                        <div class="tb-btn" onclick="editBlock(${index})" title="Edit">${ICONS.edit}</div>
+                        <div class="tb-btn tb-del" onclick="removeBlock(${index})" title="Delete">×</div>
+                    </div>
+                `;
+            }
+            list.appendChild(div);
+        });
+        localStorage.setItem('exec_blocks_v2', JSON.stringify(blocks));
+    }
+
+    function addBlock() {
+        const s = document.getElementById('plan-start').value;
+        const e = document.getElementById('plan-end').value;
+        const t = document.getElementById('plan-task').value;
+        
+        if (s && e && t) {
+            blocks.push({ start: s, end: e, text: t });
+            document.getElementById('plan-task').value = '';
+            
+            // Auto advance
+            document.getElementById('plan-start').value = e;
+            const [h, m] = e.split(':').map(Number);
+            const d = new Date(); d.setHours(h + 1); d.setMinutes(m);
+            document.getElementById('plan-end').value = 
+                String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+
+            renderBlocks();
+        }
+    }
+
+    // Switch a row to Edit Mode
+    function editBlock(index) {
+        editingIndex = index;
+        renderBlocks();
+        // Try to focus the text input
+        setTimeout(() => {
+            const el = document.getElementById(`edit-task-${index}`);
+            if(el) el.focus();
+        }, 50);
+    }
+
+    // Save changes from Edit Mode
+    function saveBlock(index) {
+        const s = document.getElementById(`edit-start-${index}`).value;
+        const e = document.getElementById(`edit-end-${index}`).value;
+        const t = document.getElementById(`edit-task-${index}`).value;
+
+        if (s && e && t) {
+            blocks[index] = { start: s, end: e, text: t };
+            editingIndex = -1; // Exit edit mode
+            renderBlocks();
+        } else {
+            alert("Fields cannot be empty.");
+        }
+    }
+
+    function removeBlock(index) {
+        blocks.splice(index, 1);
+        if (editingIndex === index) editingIndex = -1; 
+        renderBlocks();
+    }
+    
+    function clearPlan() {
+        if(confirm("Clear all tasks?")) {
+            blocks = [];
+            editingIndex = -1;
+            renderBlocks();
+        }
+    }
+    
+    // Init Default Time
+    const now = new Date();
+    const nextH = String((now.getHours() + 1) % 24).padStart(2,'0'); 
+    document.getElementById('plan-start').value = `${nextH}:00`;
+    autoFillEnd();
+    renderBlocks();
+
+
+    // --- MODULE 2: WEATHER ---
+    async function initWeather() {
+        const city = document.getElementById('city-input').value;
+        if(!city) return;
+        localStorage.setItem('exec_city', city);
+
+        try {
+            const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=en&format=json`);
+            const geoData = await geoRes.json();
+            if (!geoData.results) throw new Error("City not found");
+            const { latitude, longitude, name } = geoData.results[0];
+            document.getElementById('city-input').value = name.toUpperCase();
+
+            const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`);
+            const data = await weatherRes.json();
+
+            document.getElementById('w-current').innerHTML = `
+                ${getWeatherIcon(data.current.weather_code)}
+                <div class="temp-big">${Math.round(data.current.temperature_2m)}°</div>
+                <div class="weather-loc">CURRENT</div>
+            `;
+
+            const segmentsHTML = [
+                { label: 'MRN', idx: 9 },
+                { label: 'AFT', idx: 15 },
+                { label: 'EVE', idx: 20 }
+            ].map(seg => {
+                const temp = Math.round(data.hourly.temperature_2m[seg.idx]);
+                const code = data.hourly.weather_code[seg.idx];
+                return `
+                    <div class="segment">
+                        <div class="seg-label">${seg.label}</div>
+                        ${getWeatherIcon(code)}
+                        <div class="seg-temp">${temp}°</div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('w-segments').innerHTML = segmentsHTML;
+
+            let forecastHTML = '';
+            for(let i=1; i<=3; i++) {
+                const date = new Date(data.daily.time[i]);
+                const dayName = date.toLocaleDateString('en-US', {weekday: 'short'}).toUpperCase();
+                const max = Math.round(data.daily.temperature_2m_max[i]);
+                const min = Math.round(data.daily.temperature_2m_min[i]);
+                
+                forecastHTML += `
+                    <div class="forecast-row" style="align-items: center;">
+                        <span style="width: 30px; font-weight: bold;">${dayName}</span>
+                        <span style="flex:1; display:flex; justify-content:center; opacity:0.8;">
+                            ${getWeatherIcon(data.daily.weather_code[i])}
+                        </span>
+                        <span style="width: 90px; text-align: right;">
+                            <span>${max}°</span>
+                            <span style="color:var(--text-dim); margin-left:6px">${min}°</span>
+                        </span>
+                    </div>
+                `;
+            }
+            document.getElementById('w-forecast').innerHTML = forecastHTML;
+
+        } catch (e) {
+            document.getElementById('w-current').innerHTML = `<span style="color:var(--alert)">OFFLINE</span>`;
+        }
+    }
+    if(localStorage.getItem('exec_city')) document.getElementById('city-input').value = localStorage.getItem('exec_city');
+    initWeather();
+
+
+    // --- MODULE 3: NEWS ---
+    async function initNews() {
+        const feedContainer = document.getElementById('news-feed');
+        feedContainer.innerHTML = '<div style="padding:20px; text-align:center;">Fetching data...</div>';
+
+        const SOURCES = [
+            { name: "NYT", url: "https://rss.nytimes.com/services/xml/rss/nyt/MostViewed.xml" },
+            { name: "HACKER NEWS", url: "https://hnrss.org/best?points=500" },
+            { name: "LE MONDE", url: "https://www.lemonde.fr/rss/plus-lus.xml" },
+        ];
+
+        try {
+            const promises = SOURCES.map(async (src) => {
+                const res = await fetch(PROXY + encodeURIComponent(src.url));
+                const text = await res.text();
+                const xml = new DOMParser().parseFromString(text, "text/xml");
+                const items = Array.from(xml.querySelectorAll("item")).slice(0, 4);
+                return items.map(item => {
+                    return {
+                        source: src.name,
+                        title: item.querySelector("title").textContent,
+                        link: item.querySelector("link").textContent,
+                        date: new Date(item.querySelector("pubDate").textContent)
+                    };
+                });
+            });
+
+            let allNews = (await Promise.all(promises)).flat();
+            allNews.sort((a, b) => b.date - a.date);
+
+            let html = '';
+            allNews.forEach(n => {
+                const domain = new URL(n.link).hostname.replace('www.','');
+                const timeStr = n.date.getHours().toString().padStart(2,'0') + ':' + n.date.getMinutes().toString().padStart(2,'0');
+                
+                html += `
+                    <div class="news-item">
+                        <span class="news-source">${n.source}</span>
+                        <a href="${n.link}" target="_blank" class="news-title">${n.title}</a>
+                        <div class="news-meta">
+                            <span>${domain}</span>
+                            <span>${timeStr}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            feedContainer.innerHTML = html;
+
+        } catch (e) {
+            feedContainer.innerHTML = `<div style="padding:20px; color:var(--alert)">Connection Failed.</div>`;
+        }
+    }
+    initNews();
+
+</script>
+</body>
+</html>
