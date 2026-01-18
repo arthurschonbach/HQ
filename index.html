@@ -97,15 +97,13 @@
         .refresh-btn { cursor: pointer; font-size: 16px; background: none; border: none; color: var(--text-dim); padding: 0 5px; }
         .refresh-btn:hover { color: var(--text-main); }
 
-        /* --- PLANNING MODULE --- */
-        .plan-input-area {
+        /* --- TODO MODULE --- */
+        .todo-input-area {
             padding: 15px;
             border-bottom: 1px solid var(--border);
             display: flex;
-            flex-direction: column;
             gap: 10px;
         }
-        .input-row { display: flex; gap: 10px; }
         
         input {
             background: var(--bg);
@@ -117,44 +115,48 @@
             font-size: 12px;
         }
         input:focus { border-color: var(--accent); outline: none; }
-        input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
         
-        .block-list { padding: 0; margin: 0; list-style: none; min-height: 200px; }
+        .todo-list { padding: 0; margin: 0; list-style: none; min-height: 200px; }
         
-        /* Normal Mode Row */
-        .time-block {
+        /* Todo Item Row */
+        .todo-item {
             display: flex;
             padding: 12px 15px;
             border-bottom: 1px solid var(--border);
             align-items: center;
             transition: background 0.2s;
-            group: 'row';
         }
-        .time-block:last-child { border-bottom: none; }
-        .time-block:hover { background: var(--surface-hover); }
+        .todo-item:last-child { border-bottom: none; }
+        .todo-item:hover { background: var(--surface-hover); }
+        .todo-item.completed { opacity: 0.5; }
+        .todo-item.completed .todo-text { text-decoration: line-through; }
         
         /* Edit Mode Row */
-        .time-block.editing-mode {
+        .todo-item.editing-mode {
             background: var(--surface-hover);
-            padding: 10px;
-            align-items: flex-start;
+            padding: 10px 15px;
         }
 
-        .tb-time-col {
+        .todo-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border);
+            border-radius: 3px;
+            cursor: pointer;
             display: flex;
-            flex-direction: column;
-            width: 70px;
+            align-items: center;
+            justify-content: center;
             flex-shrink: 0;
-            font-size: 12px;
-            font-feature-settings: "tnum"; 
+            transition: all 0.2s;
         }
-        .t-start { color: var(--accent); font-weight: bold; }
-        .t-end { color: var(--text-dim); font-size: 10px; margin-top: 2px; }
+        .todo-checkbox:hover { border-color: var(--accent); }
+        .todo-checkbox.checked { background: var(--accent); border-color: var(--accent); }
+        .todo-checkbox.checked svg { stroke: #000; }
 
-        .tb-task { flex: 1; margin: 0 15px; word-break: break-word; line-height: 1.4; }
+        .todo-text { flex: 1; margin: 0 15px; word-break: break-word; line-height: 1.4; }
         
-        .tb-actions { display: flex; gap: 8px; }
-        .tb-btn { 
+        .todo-actions { display: flex; gap: 8px; }
+        .todo-btn { 
             color: var(--text-dim); 
             cursor: pointer; 
             font-size: 14px; 
@@ -162,16 +164,10 @@
             border: 1px solid transparent;
             border-radius: 4px;
         }
-        .tb-btn:hover { color: var(--text-main); border-color: var(--border); }
-        .tb-del:hover { color: var(--alert); border-color: var(--alert); }
+        .todo-btn:hover { color: var(--text-main); border-color: var(--border); }
+        .todo-del:hover { color: var(--alert); border-color: var(--alert); }
 
-        /* Edit Inputs Styles */
-        .edit-input-time { 
-            width: 70px; 
-            margin-bottom: 4px; 
-            padding: 4px; 
-            height: 25px;
-        }
+        /* Edit Input Styles */
         .edit-input-task { 
             flex: 1; 
             margin: 0 10px; 
@@ -253,32 +249,18 @@
 
     <div class="app-container">
         
-        <!-- SECTION 1: PLANNING (24h) -->
+        <!-- SECTION 1: TODO LIST -->
         <div class="card" style="grid-area: plan;">
             <div class="header">
-                <h2>Time Blocking (24H)</h2>
-                <button class="refresh-btn" onclick="clearPlan()">×</button>
+                <h2>To Do</h2>
+                <button class="refresh-btn" onclick="clearTodos()">×</button>
             </div>
-            <div class="plan-input-area">
-                <div class="input-row">
-                    <!-- START TIME -->
-                    <div style="flex:1">
-                        <label style="font-size:9px; color:var(--text-dim); display:block; margin-bottom:4px;">START</label>
-                        <input type="time" id="plan-start" style="width: 100%;" onchange="autoFillEnd()">
-                    </div>
-                    <!-- END TIME -->
-                    <div style="flex:1">
-                        <label style="font-size:9px; color:var(--text-dim); display:block; margin-bottom:4px;">END</label>
-                        <input type="time" id="plan-end" style="width: 100%;">
-                    </div>
-                </div>
-                <div class="input-row">
-                    <input type="text" id="plan-task" placeholder="Objective..." style="flex:1;" onkeypress="if(event.key==='Enter') addBlock()">
-                    <button class="btn-main" onclick="addBlock()">ADD</button>
-                </div>
+            <div class="todo-input-area">
+                <input type="text" id="todo-input" placeholder="New task..." style="flex:1;" onkeypress="if(event.key==='Enter') addTodo()">
+                <button class="btn-main" onclick="addTodo()">ADD</button>
             </div>
-            <div id="block-list" class="block-list">
-                <!-- Blocks inserted here -->
+            <div id="todo-list" class="todo-list">
+                <!-- Todos inserted here -->
             </div>
         </div>
 
@@ -346,88 +328,69 @@
         return ICONS.rain;
     }
 
-    // --- MODULE 1: PLANNING (24H Strict + Editable) ---
-    let blocks = JSON.parse(localStorage.getItem('exec_blocks_v2')) || [];
+    // --- MODULE 1: TODO LIST ---
+    let todos = JSON.parse(localStorage.getItem('exec_todos')) || [];
     let editingIndex = -1; // -1 means nothing is being edited
 
-    function autoFillEnd() {
-        const start = document.getElementById('plan-start').value;
-        if(!start) return;
-        const [h, m] = start.split(':').map(Number);
-        const d = new Date(); d.setHours(h + 1); d.setMinutes(m);
-        document.getElementById('plan-end').value = 
-            String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-    }
-
-    function renderBlocks() {
-        const list = document.getElementById('block-list');
+    function renderTodos() {
+        const list = document.getElementById('todo-list');
         list.innerHTML = '';
-        
-        // Ensure chronological order
-        blocks.sort((a, b) => a.start.localeCompare(b.start));
 
-        blocks.forEach((b, index) => {
+        todos.forEach((todo, index) => {
             const div = document.createElement('div');
             
             if (index === editingIndex) {
                 // EDIT MODE
-                div.className = 'time-block editing-mode';
+                div.className = 'todo-item editing-mode';
                 div.innerHTML = `
-                    <div class="tb-time-col">
-                        <input type="time" class="edit-input-time" id="edit-start-${index}" value="${b.start}">
-                        <input type="time" class="edit-input-time" id="edit-end-${index}" value="${b.end}">
+                    <div class="todo-checkbox ${todo.completed ? 'checked' : ''}" onclick="toggleTodo(${index})">
+                        ${todo.completed ? ICONS.check : ''}
                     </div>
-                    <input type="text" class="edit-input-task" id="edit-task-${index}" value="${b.text}" 
-                           onkeypress="if(event.key==='Enter') saveBlock(${index})">
-                    <div class="tb-actions">
-                        <div class="tb-btn" style="color:var(--accent)" onclick="saveBlock(${index})" title="Save">${ICONS.check}</div>
+                    <input type="text" class="edit-input-task" id="edit-task-${index}" value="${todo.text}" 
+                           onkeypress="if(event.key==='Enter') saveTodo(${index})">
+                    <div class="todo-actions">
+                        <div class="todo-btn" style="color:var(--accent)" onclick="saveTodo(${index})" title="Save">${ICONS.check}</div>
                     </div>
                 `;
             } else {
                 // VIEW MODE
-                div.className = 'time-block';
+                div.className = 'todo-item' + (todo.completed ? ' completed' : '');
                 div.innerHTML = `
-                    <div class="tb-time-col">
-                        <span class="t-start">${b.start}</span>
-                        <span class="t-end">${b.end}</span>
+                    <div class="todo-checkbox ${todo.completed ? 'checked' : ''}" onclick="toggleTodo(${index})">
+                        ${todo.completed ? ICONS.check : ''}
                     </div>
-                    <div class="tb-task">${b.text}</div>
-                    <div class="tb-actions">
-                        <div class="tb-btn" onclick="editBlock(${index})" title="Edit">${ICONS.edit}</div>
-                        <div class="tb-btn tb-del" onclick="removeBlock(${index})" title="Delete">×</div>
+                    <div class="todo-text">${todo.text}</div>
+                    <div class="todo-actions">
+                        <div class="todo-btn" onclick="editTodo(${index})" title="Edit">${ICONS.edit}</div>
+                        <div class="todo-btn todo-del" onclick="removeTodo(${index})" title="Delete">×</div>
                     </div>
                 `;
             }
             list.appendChild(div);
         });
-        localStorage.setItem('exec_blocks_v2', JSON.stringify(blocks));
+        localStorage.setItem('exec_todos', JSON.stringify(todos));
     }
 
-    function addBlock() {
-        const s = document.getElementById('plan-start').value;
-        const e = document.getElementById('plan-end').value;
-        const t = document.getElementById('plan-task').value;
+    function addTodo() {
+        const input = document.getElementById('todo-input');
+        const text = input.value.trim();
         
-        if (s && e && t) {
-            blocks.push({ start: s, end: e, text: t });
-            document.getElementById('plan-task').value = '';
-            
-            // Auto advance
-            document.getElementById('plan-start').value = e;
-            const [h, m] = e.split(':').map(Number);
-            const d = new Date(); d.setHours(h + 1); d.setMinutes(m);
-            document.getElementById('plan-end').value = 
-                String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-
-            renderBlocks();
+        if (text) {
+            todos.push({ text: text, completed: false });
+            input.value = '';
+            renderTodos();
         }
     }
 
+    function toggleTodo(index) {
+        todos[index].completed = !todos[index].completed;
+        renderTodos();
+    }
+
     // Switch a row to Edit Mode
-    function editBlock(index) {
+    function editTodo(index) {
         editingIndex = index;
-        renderBlocks();
-        // Try to focus the text input
+        renderTodos();
         setTimeout(() => {
             const el = document.getElementById(`edit-task-${index}`);
             if(el) el.focus();
@@ -435,40 +398,33 @@
     }
 
     // Save changes from Edit Mode
-    function saveBlock(index) {
-        const s = document.getElementById(`edit-start-${index}`).value;
-        const e = document.getElementById(`edit-end-${index}`).value;
-        const t = document.getElementById(`edit-task-${index}`).value;
+    function saveTodo(index) {
+        const t = document.getElementById(`edit-task-${index}`).value.trim();
 
-        if (s && e && t) {
-            blocks[index] = { start: s, end: e, text: t };
-            editingIndex = -1; // Exit edit mode
-            renderBlocks();
-        } else {
-            alert("Fields cannot be empty.");
-        }
-    }
-
-    function removeBlock(index) {
-        blocks.splice(index, 1);
-        if (editingIndex === index) editingIndex = -1; 
-        renderBlocks();
-    }
-    
-    function clearPlan() {
-        if(confirm("Clear all tasks?")) {
-            blocks = [];
+        if (t) {
+            todos[index].text = t;
             editingIndex = -1;
-            renderBlocks();
+            renderTodos();
+        } else {
+            alert("Task cannot be empty.");
+        }
+    }
+
+    function removeTodo(index) {
+        todos.splice(index, 1);
+        if (editingIndex === index) editingIndex = -1; 
+        renderTodos();
+    }
+    
+    function clearTodos() {
+        if(confirm("Clear all tasks?")) {
+            todos = [];
+            editingIndex = -1;
+            renderTodos();
         }
     }
     
-    // Init Default Time
-    const now = new Date();
-    const nextH = String((now.getHours() + 1) % 24).padStart(2,'0'); 
-    document.getElementById('plan-start').value = `${nextH}:00`;
-    autoFillEnd();
-    renderBlocks();
+    renderTodos();
 
 
     // --- MODULE 2: WEATHER ---
