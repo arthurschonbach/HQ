@@ -191,27 +191,57 @@
 
         /* --- NEWS MODULE --- */
         .news-container { max-height: 80vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) var(--bg); }
-        .news-item { padding: 15px 20px; border-bottom: 1px solid var(--border); }
+        .news-filters { 
+            padding: 10px 15px; 
+            border-bottom: 1px solid var(--border); 
+            display: flex; 
+            gap: 6px; 
+            flex-wrap: wrap;
+            background: var(--bg);
+        }
+        .filter-btn {
+            font-size: 9px;
+            padding: 4px 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-dim);
+            cursor: pointer;
+            border-radius: 3px;
+            font-family: inherit;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+        }
+        .filter-btn:hover { border-color: var(--text-dim); color: var(--text-main); }
+        .filter-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+        .news-item { padding: 12px 15px; border-bottom: 1px solid var(--border); transition: background 0.2s; }
+        .news-item:hover { background: var(--surface-hover); }
+        .news-item:last-child { border-bottom: none; }
+        .news-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
         .news-source { 
-            font-size: 9px; 
-            background: var(--border); 
-            color: var(--text-main); 
+            font-size: 8px; 
             padding: 2px 6px; 
             border-radius: 2px;
-            display: inline-block; 
-            margin-bottom: 6px; 
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
         }
+        .news-source.cat-world { background: #1a3a5c; color: #6db3f2; }
+        .news-source.cat-tech { background: #2d1f3d; color: #b39ddb; }
+        .news-source.cat-business { background: #1f3d2d; color: #81c784; }
+        .news-source.cat-culture { background: #3d2d1f; color: #ffb74d; }
+        .news-time { font-size: 9px; color: var(--text-dim); margin-left: auto; }
         .news-title { 
             display: block; 
-            font-size: 14px; 
-            font-weight: 600; 
+            font-size: 13px; 
+            font-weight: 500; 
             color: var(--text-main); 
             text-decoration: none; 
-            margin-bottom: 6px; 
-            line-height: 1.4; 
+            line-height: 1.45; 
         }
         .news-title:hover { color: var(--accent); }
-        .news-meta { font-size: 10px; color: var(--text-dim); display: flex; justify-content: space-between; }
+        .news-domain { font-size: 9px; color: var(--text-dim); margin-top: 4px; }
+        .news-empty { padding: 40px 20px; text-align: center; color: var(--text-dim); }
         
         /* --- UTILS --- */
         .btn-main {
@@ -289,6 +319,13 @@
             <div class="header">
                 <h2>Intel Feed</h2>
                 <button class="refresh-btn" onclick="initNews()">↻</button>
+            </div>
+            <div class="news-filters" id="news-filters">
+                <button class="filter-btn active" data-cat="all">All</button>
+                <button class="filter-btn" data-cat="world">World</button>
+                <button class="filter-btn" data-cat="tech">Tech</button>
+                <button class="filter-btn" data-cat="business">Business</button>
+                <button class="filter-btn" data-cat="culture">Culture</button>
             </div>
             <div id="news-feed">
                 <div style="padding:20px; color:var(--text-dim)">Decrypting sources...</div>
@@ -496,58 +533,137 @@
     initWeather();
 
 
-    // --- MODULE 3: NEWS ---
+    // --- MODULE 3: NEWS (Diverse Sources) ---
+    let allNewsCache = [];
+    let activeFilter = 'all';
+
+    // Diverse news sources across political spectrum and regions
+    const NEWS_SOURCES = [
+        // === WORLD NEWS (Mainstream + Wire Services) ===
+        { name: "REUTERS", url: "https://feeds.reuters.com/reuters/topNews", cat: "world" },
+        { name: "BBC", url: "https://feeds.bbci.co.uk/news/world/rss.xml", cat: "world" },
+        { name: "AL JAZEERA", url: "https://www.aljazeera.com/xml/rss/all.xml", cat: "world" },
+        { name: "LE MONDE", url: "https://www.lemonde.fr/rss/une.xml", cat: "world" },
+        { name: "DER SPIEGEL", url: "https://www.spiegel.de/international/index.rss", cat: "world" },
+        
+        // === TECH ===
+        { name: "HACKER NEWS", url: "https://hnrss.org/best?points=300", cat: "tech" },
+        { name: "ARS TECHNICA", url: "https://feeds.arstechnica.com/arstechnica/features", cat: "tech" },
+        { name: "THE VERGE", url: "https://www.theverge.com/rss/index.xml", cat: "tech" },
+        
+        // === BUSINESS / ECONOMICS ===
+        { name: "ECONOMIST", url: "https://www.economist.com/finance-and-economics/rss.xml", cat: "business" },
+        { name: "FT", url: "https://www.ft.com/rss/home", cat: "business" },
+        
+        // === CULTURE / IDEAS ===
+        { name: "NYT", url: "https://rss.nytimes.com/services/xml/rss/nyt/MostViewed.xml", cat: "culture" },
+        { name: "THE ATLANTIC", url: "https://www.theatlantic.com/feed/best-of/", cat: "culture" },
+        { name: "GUARDIAN", url: "https://www.theguardian.com/world/rss", cat: "world" },
+    ];
+
+    function setupFilters() {
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                activeFilter = btn.dataset.cat;
+                renderNews();
+            });
+        });
+    }
+
+    function renderNews() {
+        const feedContainer = document.getElementById('news-feed');
+        const filtered = activeFilter === 'all' 
+            ? allNewsCache 
+            : allNewsCache.filter(n => n.cat === activeFilter);
+
+        if (filtered.length === 0) {
+            feedContainer.innerHTML = '<div class="news-empty">No articles in this category</div>';
+            return;
+        }
+
+        let html = '';
+        filtered.forEach(n => {
+            const domain = (() => { try { return new URL(n.link).hostname.replace('www.',''); } catch { return ''; } })();
+            const timeAgo = getTimeAgo(n.date);
+            
+            html += `
+                <div class="news-item">
+                    <div class="news-header">
+                        <span class="news-source cat-${n.cat}">${n.source}</span>
+                        <span class="news-time">${timeAgo}</span>
+                    </div>
+                    <a href="${n.link}" target="_blank" rel="noopener" class="news-title">${n.title}</a>
+                    <div class="news-domain">${domain}</div>
+                </div>
+            `;
+        });
+        feedContainer.innerHTML = html;
+    }
+
+    function getTimeAgo(date) {
+        const now = new Date();
+        const diff = Math.floor((now - date) / 1000);
+        if (diff < 3600) return Math.floor(diff / 60) + 'm';
+        if (diff < 86400) return Math.floor(diff / 3600) + 'h';
+        return Math.floor(diff / 86400) + 'd';
+    }
+
     async function initNews() {
         const feedContainer = document.getElementById('news-feed');
-        feedContainer.innerHTML = '<div style="padding:20px; text-align:center;">Fetching data...</div>';
+        feedContainer.innerHTML = '<div style="padding:30px; text-align:center; color:var(--text-dim)">Aggregating sources...</div>';
 
-        const SOURCES = [
-            { name: "NYT", url: "https://rss.nytimes.com/services/xml/rss/nyt/MostViewed.xml" },
-            { name: "HACKER NEWS", url: "https://hnrss.org/best?points=500" },
-            { name: "LE MONDE", url: "https://www.lemonde.fr/rss/plus-lus.xml" },
-        ];
+        const results = await Promise.allSettled(
+            NEWS_SOURCES.map(async (src) => {
+                try {
+                    const res = await fetch(PROXY + encodeURIComponent(src.url), { signal: AbortSignal.timeout(8000) });
+                    const text = await res.text();
+                    const xml = new DOMParser().parseFromString(text, "text/xml");
+                    
+                    // Handle both RSS and Atom feeds
+                    let items = Array.from(xml.querySelectorAll("item"));
+                    if (items.length === 0) {
+                        items = Array.from(xml.querySelectorAll("entry"));
+                    }
+                    
+                    return items.slice(0, 3).map(item => {
+                        const title = item.querySelector("title")?.textContent || '';
+                        let link = item.querySelector("link")?.textContent || item.querySelector("link")?.getAttribute("href") || '';
+                        const pubDate = item.querySelector("pubDate")?.textContent || 
+                                        item.querySelector("published")?.textContent || 
+                                        item.querySelector("updated")?.textContent || new Date().toISOString();
+                        
+                        return {
+                            source: src.name,
+                            cat: src.cat,
+                            title: title.trim(),
+                            link: link.trim(),
+                            date: new Date(pubDate)
+                        };
+                    }).filter(item => item.title && item.link);
+                } catch (e) {
+                    console.warn(`Failed to fetch ${src.name}:`, e);
+                    return [];
+                }
+            })
+        );
 
-        try {
-            const promises = SOURCES.map(async (src) => {
-                const res = await fetch(PROXY + encodeURIComponent(src.url));
-                const text = await res.text();
-                const xml = new DOMParser().parseFromString(text, "text/xml");
-                const items = Array.from(xml.querySelectorAll("item")).slice(0, 4);
-                return items.map(item => {
-                    return {
-                        source: src.name,
-                        title: item.querySelector("title").textContent,
-                        link: item.querySelector("link").textContent,
-                        date: new Date(item.querySelector("pubDate").textContent)
-                    };
-                });
-            });
+        allNewsCache = results
+            .filter(r => r.status === 'fulfilled')
+            .flatMap(r => r.value)
+            .filter(n => !isNaN(n.date.getTime()))
+            .sort((a, b) => b.date - a.date);
 
-            let allNews = (await Promise.all(promises)).flat();
-            allNews.sort((a, b) => b.date - a.date);
-
-            let html = '';
-            allNews.forEach(n => {
-                const domain = new URL(n.link).hostname.replace('www.','');
-                const timeStr = n.date.getHours().toString().padStart(2,'0') + ':' + n.date.getMinutes().toString().padStart(2,'0');
-                
-                html += `
-                    <div class="news-item">
-                        <span class="news-source">${n.source}</span>
-                        <a href="${n.link}" target="_blank" class="news-title">${n.title}</a>
-                        <div class="news-meta">
-                            <span>${domain}</span>
-                            <span>${timeStr}</span>
-                        </div>
-                    </div>
-                `;
-            });
-            feedContainer.innerHTML = html;
-
-        } catch (e) {
-            feedContainer.innerHTML = `<div style="padding:20px; color:var(--alert)">Connection Failed.</div>`;
+        if (allNewsCache.length === 0) {
+            feedContainer.innerHTML = '<div style="padding:30px; text-align:center; color:var(--alert)">Connection failed. Check network.</div>';
+            return;
         }
+
+        renderNews();
     }
+
+    setupFilters();
     initNews();
 
 </script>
