@@ -314,33 +314,12 @@
             
             /* News Module - Mobile Optimized with Horizontal Scroll */
             .news-container {
-                max-height: none;
-                overflow: visible;
-            }
-            
-            /* Horizontal scrolling categories on mobile */
-            .news-categories-scroll {
-                display: flex;
-                overflow-x: auto;
-                scroll-snap-type: x mandatory;
-                -webkit-overflow-scrolling: touch;
-                scrollbar-width: none;
-                margin: 0 -16px;
-                padding: 0 16px;
-            }
-            
-            .news-categories-scroll::-webkit-scrollbar {
-                display: none;
-            }
-            
-            .news-category-panel {
-                flex: 0 0 100%;
-                scroll-snap-align: start;
-                min-width: 100%;
+                max-height: 70vh;
+                overflow: hidden;
             }
             
             .news-filters {
-                display: none;
+                display: none !important;
             }
             
             .mobile-category-tabs {
@@ -351,6 +330,10 @@
                 overflow-x: auto;
                 scrollbar-width: none;
                 -webkit-overflow-scrolling: touch;
+                background: var(--surface);
+                position: sticky;
+                top: 0;
+                z-index: 5;
             }
             
             .mobile-category-tabs::-webkit-scrollbar {
@@ -359,10 +342,10 @@
             
             .mobile-tab {
                 flex: 1;
-                min-width: 70px;
-                padding: 14px 16px;
+                min-width: 65px;
+                padding: 14px 12px;
                 text-align: center;
-                font-size: 11px;
+                font-size: 10px;
                 font-weight: 500;
                 letter-spacing: 0.05em;
                 text-transform: uppercase;
@@ -378,6 +361,47 @@
             .mobile-tab.active {
                 color: var(--accent-text);
                 border-bottom-color: var(--accent);
+            }
+            
+            /* Horizontal scroll panels container */
+            .news-panels-container {
+                display: flex;
+                overflow-x: auto;
+                scroll-snap-type: x mandatory;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+            
+            .news-panels-container::-webkit-scrollbar {
+                display: none;
+            }
+            
+            /* Each category panel */
+            .news-panel {
+                flex: 0 0 100%;
+                min-width: 100%;
+                scroll-snap-align: start;
+                max-height: calc(70vh - 100px);
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .news-panel::-webkit-scrollbar {
+                width: 3px;
+            }
+            
+            .news-panel::-webkit-scrollbar-thumb {
+                background: var(--border-strong);
+                border-radius: 2px;
+            }
+            
+            /* Hide the old single feed on mobile */
+            .news-feed-scroll {
+                display: none !important;
+            }
+            
+            .lean-legend {
+                display: none !important;
             }
             
             .news-item {
@@ -432,28 +456,6 @@
             .news-empty {
                 padding: 48px 24px;
                 font-size: 13px;
-            }
-            
-            /* Scroll indicator dots */
-            .scroll-indicators {
-                display: flex;
-                justify-content: center;
-                gap: 6px;
-                padding: 16px;
-                border-top: 1px solid var(--border);
-            }
-            
-            .scroll-dot {
-                width: 6px;
-                height: 6px;
-                border-radius: 50%;
-                background: var(--border-strong);
-                transition: all var(--transition);
-            }
-            
-            .scroll-dot.active {
-                background: var(--accent);
-                transform: scale(1.2);
             }
             
             /* Buttons & Inputs - Touch friendly */
@@ -561,23 +563,22 @@
             }
         }
         
-        /* Desktop: hide mobile elements */
+        /* Desktop: hide mobile elements, show desktop elements */
         @media (min-width: 700px) {
             .mobile-category-tabs {
                 display: none !important;
             }
             
-            .scroll-indicators {
+            .news-panels-container {
                 display: none !important;
             }
             
-            .news-categories-scroll {
-                display: block;
-                overflow: visible;
+            .news-feed-scroll {
+                display: block !important;
             }
             
-            .news-category-panel {
-                min-width: 0;
+            .lean-legend {
+                display: flex !important;
             }
         }
 
@@ -1277,7 +1278,7 @@
 
     <div class="top-bar">
         <div class="top-bar-left">
-            <span class="logo">Headquarters</span>
+            <span class="logo">HQ</span>
             <span class="clock" id="clock">—</span>
         </div>
         <div class="theme-toggle" onclick="toggleTheme()">
@@ -1383,11 +1384,11 @@
                 </div>
                 <!-- Mobile horizontal tabs -->
                 <div class="mobile-category-tabs" id="mobile-tabs">
-                    <button class="mobile-tab active" data-cat="all">All</button>
-                    <button class="mobile-tab" data-cat="world">World</button>
-                    <button class="mobile-tab" data-cat="tech">Tech</button>
-                    <button class="mobile-tab" data-cat="business">Business</button>
-                    <button class="mobile-tab" data-cat="culture">Culture</button>
+                    <button class="mobile-tab active" data-cat="all" data-index="0">All</button>
+                    <button class="mobile-tab" data-cat="world" data-index="1">World</button>
+                    <button class="mobile-tab" data-cat="tech" data-index="2">Tech</button>
+                    <button class="mobile-tab" data-cat="business" data-index="3">Business</button>
+                    <button class="mobile-tab" data-cat="culture" data-index="4">Culture</button>
                 </div>
                 <!-- Desktop filter buttons -->
                 <div class="news-filters" id="news-filters">
@@ -1399,6 +1400,17 @@
                 </div>
                 <div class="lean-legend" id="lean-legend"></div>
             </div>
+            
+            <!-- Mobile: Horizontal scrolling panels (each with independent vertical scroll) -->
+            <div class="news-panels-container" id="news-panels-container">
+                <div class="news-panel" id="panel-all" data-cat="all"></div>
+                <div class="news-panel" id="panel-world" data-cat="world"></div>
+                <div class="news-panel" id="panel-tech" data-cat="tech"></div>
+                <div class="news-panel" id="panel-business" data-cat="business"></div>
+                <div class="news-panel" id="panel-culture" data-cat="culture"></div>
+            </div>
+            
+            <!-- Desktop: Single scrollable feed -->
             <div class="news-feed-scroll">
                 <div id="news-feed">
                     <div class="news-empty loading">Loading articles...</div>
@@ -1791,35 +1803,47 @@
     { name: "AL DAILY", url: "https://www.aldaily.com/feed/", cat: "culture", lean: "C" }
 ];
 
+    const categories = ['all', 'world', 'tech', 'business', 'culture'];
 
     function setupFilters() {
         // Desktop filters
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.mobile-tab').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                // Sync mobile tab
-                const cat = btn.dataset.cat;
-                document.querySelector(`.mobile-tab[data-cat="${cat}"]`)?.classList.add('active');
-                activeFilter = cat;
+                activeFilter = btn.dataset.cat;
                 renderNews();
             });
         });
         
-        // Mobile tabs
+        // Mobile tabs - scroll to panel
         document.querySelectorAll('.mobile-tab').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.mobile-tab').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                // Sync desktop filter
-                const cat = btn.dataset.cat;
-                document.querySelector(`.filter-btn[data-cat="${cat}"]`)?.classList.add('active');
-                activeFilter = cat;
-                renderNews();
+                const index = parseInt(btn.dataset.index);
+                const container = document.getElementById('news-panels-container');
+                if (container) {
+                    const panelWidth = container.offsetWidth;
+                    container.scrollTo({
+                        left: panelWidth * index,
+                        behavior: 'smooth'
+                    });
+                }
             });
         });
+        
+        // Listen for scroll to update active tab
+        const panelsContainer = document.getElementById('news-panels-container');
+        if (panelsContainer) {
+            panelsContainer.addEventListener('scroll', () => {
+                const scrollLeft = panelsContainer.scrollLeft;
+                const panelWidth = panelsContainer.offsetWidth;
+                const currentIndex = Math.round(scrollLeft / panelWidth);
+                
+                document.querySelectorAll('.mobile-tab').forEach((tab, i) => {
+                    tab.classList.toggle('active', i === currentIndex);
+                });
+            });
+        }
     }
 
     function getTimeAgo(date) {
@@ -1895,22 +1919,45 @@
         
         return selected;
     }
+    
+    // Generate HTML for a single news item
+    function renderNewsItem(n) {
+        const leanLabels = { L: 'Left', CL: 'Center-Left', C: 'Center', CR: 'Center-Right', R: 'Right' };
+        const domain = (() => { try { return new URL(n.link).hostname.replace('www.',''); } catch { return ''; } })();
+        const timeAgo = getTimeAgo(n.date);
+        const archiveUrl = `https://archive.ph/${n.link}`;
+        
+        return `
+            <div class="news-item">
+                <div class="news-header">
+                    <span class="lean-indicator lean-${n.lean}" title="${leanLabels[n.lean]}"></span>
+                    <span class="news-source cat-${n.cat}">${n.source}</span>
+                    <a href="${archiveUrl}" target="_blank" rel="noopener" class="archive-link" title="View on archive.ph">Archive</a>
+                    <span class="news-time">${timeAgo}</span>
+                </div>
+                <a href="${n.link}" target="_blank" rel="noopener" class="news-title">${n.title}</a>
+                <div class="news-footer">
+                    <span class="news-domain">${domain}</span>
+                </div>
+            </div>
+        `;
+    }
 
     function renderNews() {
+        // === DESKTOP: Render filtered feed ===
         const feedContainer = document.getElementById('news-feed');
         
         let filtered = activeFilter === 'all' 
-            ? shuffledArticlesCache  // Use stable shuffled cache
+            ? shuffledArticlesCache
             : shuffledArticlesCache.filter(n => n.cat === activeFilter);
 
         if (filtered.length === 0) {
             feedContainer.innerHTML = '<div class="news-empty">No articles in this category</div>';
-            return;
+        } else {
+            feedContainer.innerHTML = filtered.map(n => renderNewsItem(n)).join('');
         }
-
-        const leanLabels = { L: 'Left', CL: 'Center-Left', C: 'Center', CR: 'Center-Right', R: 'Right' };
         
-        // Update the sticky lean legend
+        // Update the sticky lean legend (desktop only)
         const legendContainer = document.getElementById('lean-legend');
         if (legendContainer) {
             legendContainer.innerHTML = `
@@ -1921,33 +1968,34 @@
             `;
         }
         
-        let html = '';
-        filtered.forEach(n => {
-            const domain = (() => { try { return new URL(n.link).hostname.replace('www.',''); } catch { return ''; } })();
-            const timeAgo = getTimeAgo(n.date);
-            const archiveUrl = `https://archive.ph/${n.link}`;
-            
-            html += `
-                <div class="news-item">
-                    <div class="news-header">
-                        <span class="lean-indicator lean-${n.lean}" title="${leanLabels[n.lean]}"></span>
-                        <span class="news-source cat-${n.cat}">${n.source}</span>
-                        <a href="${archiveUrl}" target="_blank" rel="noopener" class="archive-link" title="View on archive.ph">Archive</a>
-                        <span class="news-time">${timeAgo}</span>
-                    </div>
-                    <a href="${n.link}" target="_blank" rel="noopener" class="news-title">${n.title}</a>
-                    <div class="news-footer">
-                        <span class="news-domain">${domain}</span>
-                    </div>
-                </div>
-            `;
+        // === MOBILE: Render each panel with its category content ===
+        categories.forEach(cat => {
+            const panel = document.getElementById(`panel-${cat}`);
+            if (panel) {
+                const articles = cat === 'all' 
+                    ? shuffledArticlesCache 
+                    : shuffledArticlesCache.filter(n => n.cat === cat);
+                
+                if (articles.length === 0) {
+                    panel.innerHTML = '<div class="news-empty">No articles</div>';
+                } else {
+                    panel.innerHTML = articles.map(n => renderNewsItem(n)).join('');
+                }
+            }
         });
-        feedContainer.innerHTML = html;
     }
 
     async function initNews() {
+        // Show loading in both desktop and mobile
         const feedContainer = document.getElementById('news-feed');
         feedContainer.innerHTML = '<div class="news-empty loading">Loading articles...</div>';
+        
+        categories.forEach(cat => {
+            const panel = document.getElementById(`panel-${cat}`);
+            if (panel) {
+                panel.innerHTML = '<div class="news-empty loading">Loading...</div>';
+            }
+        });
         
         const now = new Date();
         const threeHoursMs = 3 * 60 * 60 * 1000;
@@ -2037,59 +2085,9 @@
 
     setupFilters();
     initNews();
-    
-    // Mobile swipe gesture support for news categories
-    (function() {
-        const categories = ['all', 'world', 'tech', 'business', 'culture'];
-        let touchStartX = 0;
-        let touchEndX = 0;
-        
-        function handleSwipe() {
-            const minSwipeDistance = 50;
-            const diff = touchStartX - touchEndX;
-            
-            if (Math.abs(diff) < minSwipeDistance) return;
-            
-            const currentIndex = categories.indexOf(activeFilter);
-            let newIndex;
-            
-            if (diff > 0) {
-                // Swipe left - next category
-                newIndex = Math.min(currentIndex + 1, categories.length - 1);
-            } else {
-                // Swipe right - previous category
-                newIndex = Math.max(currentIndex - 1, 0);
-            }
-            
-            if (newIndex !== currentIndex) {
-                const newCat = categories[newIndex];
-                activeFilter = newCat;
-                
-                // Update both mobile and desktop UI
-                document.querySelectorAll('.mobile-tab, .filter-btn').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.cat === newCat);
-                });
-                
-                renderNews();
-            }
-        }
-        
-        const newsFeed = document.getElementById('news-feed');
-        if (newsFeed) {
-            newsFeed.addEventListener('touchstart', (e) => {
-                touchStartX = e.changedTouches[0].screenX;
-            }, { passive: true });
-            
-            newsFeed.addEventListener('touchend', (e) => {
-                touchEndX = e.changedTouches[0].screenX;
-                // Only handle swipe on mobile
-                if (window.innerWidth < 700) {
-                    handleSwipe();
-                }
-            }, { passive: true });
-        }
-    })();
 
 </script>
+</body>
+</html></script>
 </body>
 </html>
