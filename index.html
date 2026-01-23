@@ -4,72 +4,404 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>HQ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         /* --- THEME ENGINE --- */
         :root {
-            --bg: #0a0a0a;
-            --surface: #141414;
-            --surface-hover: #1f1f1f;
-            --border: #333;
-            --text-main: #e5e5e5;
-            --text-dim: #888;
-            --accent: #00ff41; /* Cyberpunk Green */
-            --alert: #ff3333;
-            --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-            --radius: 4px;
+            --bg: #fafafa;
+            --surface: #ffffff;
+            --surface-hover: #f5f7fa;
+            --surface-alt: #f0f2f5;
+            --border: rgba(0, 0, 0, 0.08);
+            --border-strong: rgba(0, 0, 0, 0.12);
+            --text-main: #1a1a2e;
+            --text-secondary: #4a5568;
+            --text-dim: #8492a6;
+            --accent: #4f46e5;
+            --accent-light: rgba(79, 70, 229, 0.1);
+            --accent-hover: #4338ca;
+            --alert: #ef4444;
+            --success: #10b981;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+            --transition: 0.2s ease;
         }
 
-        body.light-mode {
-            --bg: #f0f0f0;
-            --surface: #ffffff;
-            --surface-hover: #f5f5f5;
-            --border: #ccc;
-            --text-main: #111;
-            --text-dim: #666;
-            --accent: #0066cc;
+        [data-theme="dark"] {
+            --bg: #0f0f14;
+            --surface: #1a1a24;
+            --surface-hover: #24242f;
+            --surface-alt: #16161e;
+            --border: rgba(255, 255, 255, 0.06);
+            --border-strong: rgba(255, 255, 255, 0.1);
+            --text-main: #f0f0f5;
+            --text-secondary: #a0a0b0;
+            --text-dim: #6b6b7b;
+            --accent: #818cf8;
+            --accent-light: rgba(129, 140, 248, 0.15);
+            --accent-hover: #a5b4fc;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+            --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
         }
 
         /* --- BASE --- */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
         body {
             background-color: var(--bg);
             color: var(--text-main);
-            font-family: var(--font-mono);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0;
             padding: 0;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-            font-size: 13px;
+            font-size: 14px;
+            line-height: 1.6;
+            transition: background-color var(--transition), color var(--transition);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         /* --- LAYOUT --- */
         .app-container {
-            max-width: 1400px;
+            max-width: 1440px;
             margin: 0 auto;
             width: 100%;
-            padding: 10px;
+            padding: 16px;
             display: grid;
-            gap: 20px;
+            gap: 24px;
         }
 
         /* Desktop: 3 Columns */
         @media (min-width: 1000px) {
             .app-container {
-                grid-template-columns: 400px 1fr 300px; /* Planning | News | Weather */
+                grid-template-columns: 380px 1fr 320px;
                 grid-template-areas: "plan news weather";
-                padding: 40px 20px;
+                padding: 32px 24px;
                 align-items: start;
             }
         }
+        /* Tablet: 2 Columns */
+        @media (min-width: 700px) and (max-width: 999px) {
+            .app-container {
+                grid-template-columns: 1fr 1fr;
+                grid-template-areas: 
+                    "plan weather"
+                    "news news";
+                padding: 20px;
+            }
+        }
+        
         /* Mobile: 1 Column */
-        @media (max-width: 999px) {
+        @media (max-width: 699px) {
             .app-container {
                 grid-template-columns: 1fr;
                 grid-template-areas: 
                     "plan"
                     "weather"
                     "news";
+                padding: 12px;
+                gap: 16px;
+            }
+        }
+        
+        /* Mobile-specific improvements */
+        @media (max-width: 699px) {
+            body {
+                font-size: 15px;
+            }
+            
+            .top-bar {
+                padding: 12px 16px;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+            
+            .top-bar-left {
+                gap: 12px;
+            }
+            
+            .logo {
+                font-size: 16px;
+            }
+            
+            .clock {
+                font-size: 12px;
+            }
+            
+            .theme-toggle {
+                padding: 6px 10px;
+            }
+            
+            .theme-label {
+                display: none;
+            }
+            
+            .theme-toggle-track {
+                width: 40px;
+                height: 22px;
+            }
+            
+            .theme-toggle-thumb {
+                width: 18px;
+                height: 18px;
+            }
+            
+            [data-theme="dark"] .theme-toggle-thumb {
+                transform: translateX(18px);
+            }
+            
+            /* Cards */
+            .header {
+                padding: 14px 16px;
+            }
+            
+            .header h2 {
+                font-size: 14px;
+            }
+            
+            /* Todo Module */
+            .todo-input-area {
+                padding: 14px 16px;
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .todo-input-area input {
+                width: 100%;
+            }
+            
+            .todo-input-area .btn-main {
+                width: 100%;
+                padding: 14px;
+            }
+            
+            .todo-item {
+                padding: 14px 16px;
+            }
+            
+            .todo-actions {
+                opacity: 1;
+            }
+            
+            .todo-btn {
+                padding: 10px 12px;
+                font-size: 16px;
+            }
+            
+            .todo-checkbox {
+                width: 24px;
+                height: 24px;
+            }
+            
+            .todo-text {
+                font-size: 15px;
+                margin: 0 12px;
+            }
+            
+            /* Video Section */
+            .video-input-area {
+                padding: 12px;
+                flex-wrap: wrap;
+            }
+            
+            .video-input-area input {
+                flex: 1 1 100%;
+                order: 2;
+                margin-top: 8px;
+            }
+            
+            .video-input-area svg {
+                order: 1;
+            }
+            
+            .video-input-area .btn-main {
+                order: 3;
+                flex: 1 1 100%;
+                margin-top: 8px;
+            }
+            
+            /* Weather Module */
+            .weather-current {
+                padding: 24px 16px;
+            }
+            
+            .temp-big {
+                font-size: 48px;
+            }
+            
+            .segment {
+                padding: 14px 6px;
+            }
+            
+            .seg-label {
+                font-size: 9px;
+            }
+            
+            .seg-temp {
+                font-size: 14px;
+            }
+            
+            .forecast-row {
+                padding: 12px 16px;
+                font-size: 14px;
+            }
+            
+            /* News Module */
+            .news-container {
+                max-height: none;
+            }
+            
+            .news-filters {
+                padding: 10px 12px;
+                gap: 6px;
+                top: 50px;
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .filter-btn {
+                padding: 8px 14px;
+                font-size: 12px;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+            
+            .news-item {
+                padding: 14px 16px;
+            }
+            
+            .news-title {
+                font-size: 15px;
+            }
+            
+            .news-header {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            
+            .news-time {
+                font-size: 10px;
+            }
+            
+            .news-source {
+                font-size: 9px;
+            }
+            
+            .lean-legend {
+                padding: 8px 12px;
+                font-size: 9px;
+                gap: 8px;
+            }
+            
+            /* Buttons & Inputs - Touch friendly */
+            input {
+                padding: 14px 16px;
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+            
+            .btn-main {
+                padding: 14px 20px;
+                font-size: 14px;
+                min-height: 48px;
+            }
+            
+            .refresh-btn {
+                padding: 8px 10px;
+                min-width: 44px;
+                min-height: 44px;
+            }
+        }
+        
+        /* Extra small screens */
+        @media (max-width: 380px) {
+            .app-container {
+                padding: 8px;
+                gap: 12px;
+            }
+            
+            .temp-big {
+                font-size: 42px;
+            }
+            
+            .segment {
+                padding: 12px 4px;
+            }
+            
+            .lean-legend {
+                display: none;
+            }
+        }
+        
+        /* Touch device improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .todo-actions {
+                opacity: 1;
+            }
+            
+            .todo-item:hover {
+                background: var(--surface);
+            }
+            
+            .todo-item:active {
+                background: var(--surface-hover);
+            }
+            
+            .filter-btn:hover {
+                border-color: var(--border-strong);
+                color: var(--text-secondary);
+                background: transparent;
+            }
+            
+            .filter-btn:active {
+                border-color: var(--accent);
+                color: var(--accent);
+                background: var(--accent-light);
+            }
+            
+            .filter-btn.active:hover,
+            .filter-btn.active:active {
+                background: var(--accent);
+                color: #fff;
+                border-color: var(--accent);
+            }
+        }
+        
+        /* Safe area insets for notched devices */
+        @supports (padding: max(0px)) {
+            .top-bar {
+                padding-left: max(16px, env(safe-area-inset-left));
+                padding-right: max(16px, env(safe-area-inset-right));
+                padding-top: max(12px, env(safe-area-inset-top));
+            }
+            
+            .app-container {
+                padding-left: max(12px, env(safe-area-inset-left));
+                padding-right: max(12px, env(safe-area-inset-right));
+                padding-bottom: max(16px, env(safe-area-inset-bottom));
+            }
+        }
+        
+        /* Landscape mobile */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .weather-current {
+                padding: 16px;
+            }
+            
+            .temp-big {
+                font-size: 36px;
+            }
+            
+            .video-container {
+                padding-bottom: 40%;
             }
         }
 
@@ -81,200 +413,610 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            box-shadow: var(--shadow);
+            transition: box-shadow var(--transition), background-color var(--transition), border-color var(--transition);
         }
         
         .header {
-            padding: 15px;
+            padding: 16px 20px;
             border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: var(--bg);
-            position: sticky; top: 0; z-index: 10;
+            background: var(--surface);
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
-        .header h2 { margin: 0; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); }
-        .refresh-btn { cursor: pointer; font-size: 16px; background: none; border: none; color: var(--text-dim); padding: 0 5px; }
-        .refresh-btn:hover { color: var(--text-main); }
+        
+        .header h2 { 
+            margin: 0; 
+            font-size: 13px; 
+            font-weight: 600; 
+            letter-spacing: 0.3px; 
+            color: var(--text-main);
+        }
+        
+        .refresh-btn { 
+            cursor: pointer; 
+            font-size: 18px; 
+            background: none; 
+            border: none; 
+            color: var(--text-dim); 
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            transition: all var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .refresh-btn:hover { 
+            color: var(--text-main); 
+            background: var(--surface-hover);
+        }
 
         /* --- TODO MODULE --- */
         .todo-input-area {
-            padding: 15px;
+            padding: 16px 20px;
             border-bottom: 1px solid var(--border);
             display: flex;
-            gap: 10px;
+            gap: 12px;
+            background: var(--surface-alt);
         }
         
         input {
-            background: var(--bg);
-            border: 1px solid var(--border);
+            background: var(--surface);
+            border: 1px solid var(--border-strong);
             color: var(--text-main);
             font-family: inherit;
-            padding: 10px;
-            border-radius: var(--radius);
-            font-size: 12px;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            transition: all var(--transition);
         }
-        input:focus { border-color: var(--accent); outline: none; }
+        input::placeholder {
+            color: var(--text-dim);
+        }
+        input:focus { 
+            border-color: var(--accent); 
+            outline: none; 
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
         
-        .todo-list { padding: 0; margin: 0; list-style: none; min-height: 200px; }
+        .todo-list { 
+            padding: 0; 
+            margin: 0; 
+            list-style: none; 
+            min-height: 200px;
+        }
+        
+        .todo-empty {
+            padding: 48px 20px;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 13px;
+        }
         
         /* Todo Item Row */
         .todo-item {
             display: flex;
-            padding: 12px 15px;
+            padding: 14px 20px;
             border-bottom: 1px solid var(--border);
             align-items: center;
-            transition: background 0.2s;
+            transition: background var(--transition);
         }
         .todo-item:last-child { border-bottom: none; }
         .todo-item:hover { background: var(--surface-hover); }
-        .todo-item.completed { opacity: 0.5; }
-        .todo-item.completed .todo-text { text-decoration: line-through; }
+        .todo-item.completed { opacity: 0.55; }
+        .todo-item.completed .todo-text { text-decoration: line-through; color: var(--text-dim); }
         
         /* Edit Mode Row */
         .todo-item.editing-mode {
             background: var(--surface-hover);
-            padding: 10px 15px;
+            padding: 12px 20px;
         }
 
         .todo-checkbox {
-            width: 18px;
-            height: 18px;
-            border: 2px solid var(--border);
-            border-radius: 3px;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-strong);
+            border-radius: 6px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            transition: all 0.2s;
+            transition: all var(--transition);
         }
         .todo-checkbox:hover { border-color: var(--accent); }
-        .todo-checkbox.checked { background: var(--accent); border-color: var(--accent); }
-        .todo-checkbox.checked svg { stroke: #000; }
+        .todo-checkbox.checked { 
+            background: var(--accent); 
+            border-color: var(--accent); 
+        }
+        .todo-checkbox.checked svg { stroke: #fff; }
 
-        .todo-text { flex: 1; margin: 0 15px; word-break: break-word; line-height: 1.4; }
+        .todo-text { 
+            flex: 1; 
+            margin: 0 16px; 
+            word-break: break-word; 
+            line-height: 1.5;
+            font-size: 14px;
+        }
         
-        .todo-actions { display: flex; gap: 8px; }
+        .todo-actions { 
+            display: flex; 
+            gap: 4px;
+            opacity: 0;
+            transition: opacity var(--transition);
+        }
+        .todo-item:hover .todo-actions { opacity: 1; }
+        
         .todo-btn { 
             color: var(--text-dim); 
             cursor: pointer; 
             font-size: 14px; 
-            padding: 4px;
-            border: 1px solid transparent;
-            border-radius: 4px;
+            padding: 6px 8px;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: transparent;
+            transition: all var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .todo-btn:hover { color: var(--text-main); border-color: var(--border); }
-        .todo-del:hover { color: var(--alert); border-color: var(--alert); }
+        .todo-btn:hover { 
+            color: var(--text-main); 
+            background: var(--surface-alt);
+        }
+        .todo-del:hover { 
+            color: var(--alert); 
+            background: rgba(239, 68, 68, 0.1);
+        }
 
         /* Edit Input Styles */
         .edit-input-task { 
             flex: 1; 
-            margin: 0 10px; 
-            padding: 8px;
+            margin: 0 12px; 
+            padding: 10px 14px;
         }
 
         /* --- WEATHER MODULE --- */
-        .weather-current { padding: 20px; text-align: center; border-bottom: 1px solid var(--border); }
-        .weather-loc { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 10px; }
-        .temp-big { font-size: 42px; font-weight: 700; line-height: 1; margin-bottom: 5px; }
+        .weather-current { 
+            padding: 28px 20px; 
+            text-align: center; 
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(180deg, var(--surface-alt) 0%, var(--surface) 100%);
+        }
+        .weather-loc { 
+            font-size: 11px; 
+            color: var(--text-dim); 
+            letter-spacing: 0.5px; 
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+        .temp-big { 
+            font-size: 56px; 
+            font-weight: 300; 
+            line-height: 1; 
+            margin-bottom: 4px;
+            letter-spacing: -2px;
+        }
         
-        .weather-today-segments { display: flex; border-bottom: 1px solid var(--border); }
-        .segment { flex: 1; text-align: center; padding: 15px 5px; border-right: 1px solid var(--border); }
+        .weather-today-segments { 
+            display: flex; 
+            border-bottom: 1px solid var(--border);
+        }
+        .segment { 
+            flex: 1; 
+            text-align: center; 
+            padding: 16px 8px; 
+            border-right: 1px solid var(--border);
+            transition: background var(--transition);
+        }
         .segment:last-child { border: none; }
-        .seg-label { font-size: 9px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 5px; }
-        .seg-temp { font-weight: bold; font-size: 13px; }
+        .segment:hover { background: var(--surface-hover); }
+        .seg-label { 
+            font-size: 10px; 
+            text-transform: uppercase; 
+            color: var(--text-dim); 
+            margin-bottom: 8px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        .seg-temp { font-weight: 600; font-size: 15px; }
         
-        .forecast-row { display: flex; justify-content: space-between; padding: 10px 20px; border-bottom: 1px solid var(--border); font-size: 12px; }
+        .forecast-row { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 14px 20px; 
+            border-bottom: 1px solid var(--border); 
+            font-size: 13px;
+            transition: background var(--transition);
+        }
         .forecast-row:last-child { border: none; }
-        .icon-svg { width: 24px; height: 24px; fill: var(--text-main); margin: 5px auto; display: block; }
+        .forecast-row:hover { background: var(--surface-hover); }
+        .icon-svg { 
+            width: 24px; 
+            height: 24px; 
+            stroke: var(--text-secondary); 
+            margin: 4px auto; 
+            display: block;
+        }
 
         /* --- NEWS MODULE --- */
-        .news-container { max-height: 80vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) var(--bg); }
+        .news-container { 
+            max-height: 80vh; 
+            overflow-y: auto; 
+            scrollbar-width: thin; 
+            scrollbar-color: var(--border-strong) transparent;
+        }
+        .news-container::-webkit-scrollbar { width: 6px; }
+        .news-container::-webkit-scrollbar-track { background: transparent; }
+        .news-container::-webkit-scrollbar-thumb { 
+            background: var(--border-strong); 
+            border-radius: 3px;
+        }
+        
         .news-filters { 
-            padding: 10px 15px; 
+            padding: 12px 16px; 
             border-bottom: 1px solid var(--border); 
             display: flex; 
-            gap: 6px; 
+            gap: 8px; 
             flex-wrap: wrap;
-            background: var(--bg);
+            background: var(--surface);
+            position: sticky;
+            top: 53px;
+            z-index: 9;
         }
         .filter-btn {
-            font-size: 9px;
-            padding: 4px 8px;
-            border: 1px solid var(--border);
+            font-size: 12px;
+            padding: 6px 14px;
+            border: 1px solid var(--border-strong);
             background: transparent;
-            color: var(--text-dim);
+            color: var(--text-secondary);
             cursor: pointer;
-            border-radius: 3px;
+            border-radius: 20px;
             font-family: inherit;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            transition: all 0.2s;
+            font-weight: 500;
+            transition: all var(--transition);
         }
-        .filter-btn:hover { border-color: var(--text-dim); color: var(--text-main); }
-        .filter-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
-        .news-item { padding: 12px 15px; border-bottom: 1px solid var(--border); transition: background 0.2s; }
+        .filter-btn:hover { 
+            border-color: var(--accent); 
+            color: var(--accent);
+            background: var(--accent-light);
+        }
+        .filter-btn.active { 
+            background: var(--accent); 
+            color: #fff; 
+            border-color: var(--accent);
+        }
+        
+        .news-item { 
+            padding: 16px 20px; 
+            border-bottom: 1px solid var(--border); 
+            transition: background var(--transition);
+        }
         .news-item:hover { background: var(--surface-hover); }
         .news-item:last-child { border-bottom: none; }
-        .news-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-        .news-source { 
-            font-size: 8px; 
-            padding: 2px 6px; 
-            border-radius: 2px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 600;
+        
+        .news-header { 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            margin-bottom: 8px;
         }
-        .news-source.cat-world { background: #1a3a5c; color: #6db3f2; }
-        .news-source.cat-tech { background: #2d1f3d; color: #b39ddb; }
-        .news-source.cat-business { background: #1f3d2d; color: #81c784; }
-        .news-source.cat-culture { background: #3d2d1f; color: #ffb74d; }
-        .news-time { font-size: 9px; color: var(--text-dim); margin-left: auto; }
+        .news-source { 
+            font-size: 10px; 
+            padding: 4px 10px; 
+            border-radius: 12px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        .news-source.cat-world { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+        .news-source.cat-tech { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+        .news-source.cat-business { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+        .news-source.cat-culture { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+        
+        [data-theme="dark"] .news-source.cat-world { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        [data-theme="dark"] .news-source.cat-tech { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
+        [data-theme="dark"] .news-source.cat-business { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        [data-theme="dark"] .news-source.cat-culture { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        
+        .news-time { 
+            font-size: 11px; 
+            color: var(--text-dim); 
+            margin-left: auto;
+            font-weight: 500;
+        }
+        
+        .archive-link {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+            background: var(--surface-alt);
+            color: var(--text-secondary);
+            text-decoration: none;
+            border: 1px solid var(--border);
+            transition: all var(--transition);
+        }
+        .archive-link:hover {
+            background: var(--accent-light);
+            color: var(--accent);
+            border-color: var(--accent);
+        }
         .news-title { 
             display: block; 
-            font-size: 13px; 
+            font-size: 14px; 
             font-weight: 500; 
             color: var(--text-main); 
             text-decoration: none; 
-            line-height: 1.45; 
+            line-height: 1.5;
+            transition: color var(--transition);
         }
         .news-title:hover { color: var(--accent); }
-        .news-domain { font-size: 9px; color: var(--text-dim); margin-top: 4px; }
-        .news-empty { padding: 40px 20px; text-align: center; color: var(--text-dim); }
+        .news-domain { 
+            font-size: 11px; 
+            color: var(--text-dim); 
+            margin-top: 6px;
+        }
+        
+        .news-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 8px;
+        }
+        
+        .news-empty { 
+            padding: 48px 20px; 
+            text-align: center; 
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+        
+        /* Political lean indicator */
+        .lean-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+            flex-shrink: 0;
+        }
+        .lean-L { background: #e57373; } /* Left - soft red */
+        .lean-CL { background: #ffb74d; } /* Center-left - orange */
+        .lean-C { background: #9e9e9e; } /* Center - gray */
+        .lean-CR { background: #4dd0e1; } /* Center-right - cyan */
+        .lean-R { background: #64b5f6; } /* Right - blue */
+        
+        .lean-legend {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 10px;
+            color: var(--text-dim);
+            background: var(--surface-alt);
+            flex-wrap: wrap;
+        }
+        .lean-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
         
         /* --- UTILS --- */
         .btn-main {
-            background: var(--border);
-            color: var(--text-main);
+            background: var(--accent);
+            color: #fff;
             border: none;
-            padding: 0 20px;
+            padding: 12px 24px;
             cursor: pointer;
-            border-radius: var(--radius);
-            font-weight: bold;
-            text-transform: uppercase;
-            font-size: 11px;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 13px;
+            font-family: inherit;
+            transition: all var(--transition);
+            white-space: nowrap;
         }
-        .btn-main:hover { background: var(--accent); color: #000; }
+        .btn-main:hover { 
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+        .btn-main:active {
+            transform: translateY(0);
+        }
         
-        .settings-bar {
-            grid-area: settings;
+        /* --- TOP BAR --- */
+        .top-bar {
             display: flex;
             justify-content: space-between;
-            padding: 10px 20px;
-            font-size: 10px;
-            color: var(--text-dim);
-            border-bottom: 1px solid var(--border);
+            align-items: center;
+            padding: 16px 24px;
             background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        
+        .top-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .logo {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: -0.5px;
+        }
+        
+        .clock {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            background: var(--surface-alt);
+            border: 1px solid var(--border);
+            transition: all var(--transition);
+            user-select: none;
+        }
+        .theme-toggle:hover {
+            background: var(--surface-hover);
+            border-color: var(--border-strong);
+        }
+        
+        .theme-toggle-track {
+            width: 44px;
+            height: 24px;
+            background: var(--border-strong);
+            border-radius: 12px;
+            position: relative;
+            transition: background var(--transition);
+        }
+        
+        .theme-toggle-thumb {
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: transform var(--transition);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .theme-toggle-thumb svg {
+            width: 12px;
+            height: 12px;
+            stroke: var(--text-dim);
+        }
+        
+        [data-theme="dark"] .theme-toggle-track {
+            background: var(--accent);
+        }
+        
+        [data-theme="dark"] .theme-toggle-thumb {
+            transform: translateX(20px);
+            background: var(--surface);
+        }
+        
+        .theme-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            min-width: 40px;
+        }
+        
+        /* Loading State */
+        .loading {
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .loading { animation: pulse 1.5s ease-in-out infinite; }
+        
+        /* --- VIDEO EMBED --- */
+        .video-section {
+            border-top: 1px solid var(--border);
+        }
+        
+        .video-input-area {
+            padding: 12px 16px;
+            background: var(--surface-alt);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .video-input-area input {
+            flex: 1;
+            padding: 10px 14px;
+            font-size: 12px;
+        }
+        
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            background: var(--bg);
+        }
+        
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .video-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            font-size: 13px;
         }
 
     </style>
 </head>
 <body>
 
-    <div class="settings-bar">
-        <span id="clock">--:--:--</span>
-        <span style="cursor:pointer" onclick="document.body.classList.toggle('light-mode')">[INVERT COLORS]</span>
+    <div class="top-bar">
+        <div class="top-bar-left">
+            <span class="logo">HQ</span>
+            <span class="clock" id="clock">--:--:--</span>
+        </div>
+        <div class="theme-toggle" onclick="toggleTheme()">
+            <span class="theme-label" id="theme-label">Light</span>
+            <div class="theme-toggle-track">
+                <div class="theme-toggle-thumb">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="theme-icon">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="app-container">
@@ -282,32 +1024,63 @@
         <!-- SECTION 1: TODO LIST -->
         <div class="card" style="grid-area: plan;">
             <div class="header">
-                <h2>To Do</h2>
-                <button class="refresh-btn" onclick="clearTodos()">×</button>
+                <h2>Tasks</h2>
+                <button class="refresh-btn" onclick="clearTodos()" title="Clear all tasks">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
             </div>
             <div class="todo-input-area">
-                <input type="text" id="todo-input" placeholder="New task..." style="flex:1;" onkeypress="if(event.key==='Enter') addTodo()">
-                <button class="btn-main" onclick="addTodo()">ADD</button>
+                <input type="text" id="todo-input" placeholder="Add a new task..." style="flex:1;" onkeypress="if(event.key==='Enter') addTodo()">
+                <button class="btn-main" onclick="addTodo()">Add</button>
             </div>
             <div id="todo-list" class="todo-list">
                 <!-- Todos inserted here -->
+            </div>
+            
+            <!-- Video Embed -->
+            <div class="video-section">
+                <div class="video-input-area">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2">
+                        <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                    </svg>
+                    <input type="text" id="video-url" placeholder="YouTube URL..." 
+                           value="https://www.youtube.com/watch?v=tulP1Mc3-NU"
+                           onchange="updateVideo()" onkeypress="if(event.key==='Enter') updateVideo()">
+                    <button class="btn-main" style="padding: 10px 16px;" onclick="updateVideo()">Load</button>
+                </div>
+                <div class="video-container" id="video-container">
+                    <iframe id="video-iframe" 
+                            src="https://www.youtube.com/embed/tulP1Mc3-NU" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowfullscreen></iframe>
+                </div>
             </div>
         </div>
 
         <!-- SECTION 2: WEATHER -->
         <div class="card" style="grid-area: weather;">
             <div class="header">
-                <h2>Atmosphere</h2>
-                <button class="refresh-btn" onclick="initWeather()">↻</button>
+                <h2>Weather</h2>
+                <button class="refresh-btn" onclick="initWeather()" title="Refresh weather">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                </button>
             </div>
-            <div style="padding: 10px; border-bottom: 1px solid var(--border);">
-                <input type="text" id="city-input" placeholder="City..." value="Paris" 
-                       style="width:100%; text-align:center; border:none; background:transparent; font-weight:bold; letter-spacing:1px;" 
+            <div style="padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface-alt);">
+                <input type="text" id="city-input" placeholder="Enter city..." value="Paris" 
+                       style="width:100%; text-align:center; border:none; background:transparent; font-weight:600; letter-spacing:0.5px; font-size:14px;" 
                        onchange="initWeather()">
             </div>
             
             <div class="weather-current" id="w-current">
-                <div class="loading">Scanning...</div>
+                <div class="loading">Loading weather...</div>
             </div>
 
             <div class="weather-today-segments" id="w-segments"></div>
@@ -317,8 +1090,14 @@
         <!-- SECTION 3: NEWS -->
         <div class="card news-container" style="grid-area: news;">
             <div class="header">
-                <h2>Intel Feed</h2>
-                <button class="refresh-btn" onclick="initNews()">↻</button>
+                <h2>News Feed</h2>
+                <button class="refresh-btn" onclick="initNews()" title="Refresh news">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                </button>
             </div>
             <div class="news-filters" id="news-filters">
                 <button class="filter-btn active" data-cat="all">All</button>
@@ -328,32 +1107,66 @@
                 <button class="filter-btn" data-cat="culture">Culture</button>
             </div>
             <div id="news-feed">
-                <div style="padding:20px; color:var(--text-dim)">Decrypting sources...</div>
+                <div class="news-empty loading">Loading articles...</div>
             </div>
         </div>
 
     </div>
 
 <script>
+    // --- THEME MANAGEMENT ---
+    function initTheme() {
+        const savedTheme = localStorage.getItem('hq_theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateThemeUI(savedTheme);
+    }
+    
+    function toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('hq_theme', newTheme);
+        updateThemeUI(newTheme);
+    }
+    
+    function updateThemeUI(theme) {
+        const label = document.getElementById('theme-label');
+        const icon = document.getElementById('theme-icon');
+        
+        if (theme === 'dark') {
+            label.textContent = 'Dark';
+            icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+        } else {
+            label.textContent = 'Light';
+            icon.innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+        }
+    }
+    
+    initTheme();
+
     // --- CONFIG & UTILS ---
     const PROXY = "https://shy-block-4ddc.arthur-schonbach.workers.dev/?url=";
     
     const updateClock = () => {
         const d = new Date();
-        document.getElementById('clock').innerText = 
-            d.toLocaleDateString() + ' ' + d.toLocaleTimeString('en-GB', { hour12: false });
+        const options = { weekday: 'short', month: 'short', day: 'numeric' };
+        const dateStr = d.toLocaleDateString('en-US', options);
+        const timeStr = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('clock').innerText = `${dateStr} • ${timeStr}`;
     };
     setInterval(updateClock, 1000);
     updateClock();
 
     // --- ICONS ---
     const ICONS = {
-        sun: '<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" fill="none"/><line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2"/><line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2"/><line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="2"/><line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="2"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2"/></svg>',
-        cloud: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
-        rain: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M16 13v8M8 13v8M12 15v8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
-        snow: '<svg class="icon-svg" viewBox="0 0 24 24"><path d="M8 13v8M16 13v8M12 13v8" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/></svg>',
-        edit: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
-        check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+        sun: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/><line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2"/><line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2"/><line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="2"/><line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="2"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2"/></svg>',
+        cloud: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" stroke="currentColor" stroke-width="2"/></svg>',
+        rain: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none"><path d="M16 13v8M8 13v8M12 15v8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25" stroke="currentColor" stroke-width="2"/></svg>',
+        snow: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none"><path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25" stroke="currentColor" stroke-width="2"/><line x1="8" y1="16" x2="8.01" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="20" x2="8.01" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="18" x2="12.01" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="22" x2="12.01" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="16" x2="16.01" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="20" x2="16.01" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+        edit: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
+        check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+        trash: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>',
+        close: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>'
     };
 
     function getWeatherIcon(code) {
@@ -373,6 +1186,12 @@
         const list = document.getElementById('todo-list');
         list.innerHTML = '';
 
+        if (todos.length === 0) {
+            list.innerHTML = '<div class="todo-empty">No tasks yet. Add one above!</div>';
+            localStorage.setItem('exec_todos', JSON.stringify(todos));
+            return;
+        }
+
         todos.forEach((todo, index) => {
             const div = document.createElement('div');
             
@@ -383,10 +1202,11 @@
                     <div class="todo-checkbox ${todo.completed ? 'checked' : ''}" onclick="toggleTodo(${index})">
                         ${todo.completed ? ICONS.check : ''}
                     </div>
-                    <input type="text" class="edit-input-task" id="edit-task-${index}" value="${todo.text}" 
-                           onkeypress="if(event.key==='Enter') saveTodo(${index})">
-                    <div class="todo-actions">
-                        <div class="todo-btn" style="color:var(--accent)" onclick="saveTodo(${index})" title="Save">${ICONS.check}</div>
+                    <input type="text" class="edit-input-task" id="edit-task-${index}" value="${escapeHtml(todo.text)}" 
+                           onkeypress="if(event.key==='Enter') saveTodo(${index})" onkeydown="if(event.key==='Escape') cancelEdit()">
+                    <div class="todo-actions" style="opacity:1">
+                        <div class="todo-btn" style="color:var(--success)" onclick="saveTodo(${index})" title="Save">${ICONS.check}</div>
+                        <div class="todo-btn" onclick="cancelEdit()" title="Cancel">${ICONS.close}</div>
                     </div>
                 `;
             } else {
@@ -396,16 +1216,22 @@
                     <div class="todo-checkbox ${todo.completed ? 'checked' : ''}" onclick="toggleTodo(${index})">
                         ${todo.completed ? ICONS.check : ''}
                     </div>
-                    <div class="todo-text">${todo.text}</div>
+                    <div class="todo-text">${escapeHtml(todo.text)}</div>
                     <div class="todo-actions">
                         <div class="todo-btn" onclick="editTodo(${index})" title="Edit">${ICONS.edit}</div>
-                        <div class="todo-btn todo-del" onclick="removeTodo(${index})" title="Delete">×</div>
+                        <div class="todo-btn todo-del" onclick="removeTodo(${index})" title="Delete">${ICONS.trash}</div>
                     </div>
                 `;
             }
             list.appendChild(div);
         });
         localStorage.setItem('exec_todos', JSON.stringify(todos));
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     function addTodo() {
@@ -430,8 +1256,17 @@
         renderTodos();
         setTimeout(() => {
             const el = document.getElementById(`edit-task-${index}`);
-            if(el) el.focus();
+            if(el) {
+                el.focus();
+                el.select();
+            }
         }, 50);
+    }
+    
+    // Cancel editing
+    function cancelEdit() {
+        editingIndex = -1;
+        renderTodos();
     }
 
     // Save changes from Edit Mode
@@ -442,8 +1277,6 @@
             todos[index].text = t;
             editingIndex = -1;
             renderTodos();
-        } else {
-            alert("Task cannot be empty.");
         }
     }
 
@@ -454,6 +1287,7 @@
     }
     
     function clearTodos() {
+        if(todos.length === 0) return;
         if(confirm("Clear all tasks?")) {
             todos = [];
             editingIndex = -1;
@@ -462,6 +1296,65 @@
     }
     
     renderTodos();
+
+
+    // --- VIDEO EMBED ---
+    function getYouTubeEmbedUrl(url) {
+        if (!url) return null;
+        
+        // Handle various YouTube URL formats
+        let videoId = null;
+        
+        // Standard watch URL: youtube.com/watch?v=VIDEO_ID
+        const watchMatch = url.match(/[?&]v=([^&]+)/);
+        if (watchMatch) {
+            videoId = watchMatch[1];
+        }
+        
+        // Short URL: youtu.be/VIDEO_ID
+        const shortMatch = url.match(/youtu\.be\/([^?&]+)/);
+        if (shortMatch) {
+            videoId = shortMatch[1];
+        }
+        
+        // Embed URL: youtube.com/embed/VIDEO_ID
+        const embedMatch = url.match(/youtube\.com\/embed\/([^?&]+)/);
+        if (embedMatch) {
+            videoId = embedMatch[1];
+        }
+        
+        if (videoId) {
+            return `https://www.youtube.com/embed/${videoId}`;
+        }
+        return null;
+    }
+    
+    function updateVideo() {
+        const urlInput = document.getElementById('video-url');
+        const iframe = document.getElementById('video-iframe');
+        const url = urlInput.value.trim();
+        
+        const embedUrl = getYouTubeEmbedUrl(url);
+        
+        if (embedUrl) {
+            iframe.src = embedUrl;
+            localStorage.setItem('hq_video_url', url);
+        }
+    }
+    
+    // Load saved video URL
+    function initVideo() {
+        const savedUrl = localStorage.getItem('hq_video_url');
+        if (savedUrl) {
+            document.getElementById('video-url').value = savedUrl;
+            const embedUrl = getYouTubeEmbedUrl(savedUrl);
+            if (embedUrl) {
+                document.getElementById('video-iframe').src = embedUrl;
+            }
+        }
+    }
+    
+    initVideo();
 
 
     // --- MODULE 2: WEATHER ---
@@ -475,7 +1368,7 @@
             const geoData = await geoRes.json();
             if (!geoData.results) throw new Error("City not found");
             const { latitude, longitude, name } = geoData.results[0];
-            document.getElementById('city-input').value = name.toUpperCase();
+            document.getElementById('city-input').value = name;
 
             const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`);
             const data = await weatherRes.json();
@@ -483,13 +1376,13 @@
             document.getElementById('w-current').innerHTML = `
                 ${getWeatherIcon(data.current.weather_code)}
                 <div class="temp-big">${Math.round(data.current.temperature_2m)}°</div>
-                <div class="weather-loc">CURRENT</div>
+                <div class="weather-loc">Current</div>
             `;
 
             const segmentsHTML = [
-                { label: 'MRN', idx: 9 },
-                { label: 'AFT', idx: 15 },
-                { label: 'EVE', idx: 20 }
+                { label: 'Morning', idx: 9 },
+                { label: 'Afternoon', idx: 15 },
+                { label: 'Evening', idx: 20 }
             ].map(seg => {
                 const temp = Math.round(data.hourly.temperature_2m[seg.idx]);
                 const code = data.hourly.weather_code[seg.idx];
@@ -506,19 +1399,19 @@
             let forecastHTML = '';
             for(let i=1; i<=3; i++) {
                 const date = new Date(data.daily.time[i]);
-                const dayName = date.toLocaleDateString('en-US', {weekday: 'short'}).toUpperCase();
+                const dayName = date.toLocaleDateString('en-US', {weekday: 'short'});
                 const max = Math.round(data.daily.temperature_2m_max[i]);
                 const min = Math.round(data.daily.temperature_2m_min[i]);
                 
                 forecastHTML += `
                     <div class="forecast-row" style="align-items: center;">
-                        <span style="width: 30px; font-weight: bold;">${dayName}</span>
+                        <span style="width: 50px; font-weight: 600; font-size: 13px;">${dayName}</span>
                         <span style="flex:1; display:flex; justify-content:center; opacity:0.8;">
                             ${getWeatherIcon(data.daily.weather_code[i])}
                         </span>
                         <span style="width: 90px; text-align: right;">
-                            <span>${max}°</span>
-                            <span style="color:var(--text-dim); margin-left:6px">${min}°</span>
+                            <span style="font-weight: 600;">${max}°</span>
+                            <span style="color:var(--text-dim); margin-left:8px">${min}°</span>
                         </span>
                     </div>
                 `;
@@ -526,7 +1419,7 @@
             document.getElementById('w-forecast').innerHTML = forecastHTML;
 
         } catch (e) {
-            document.getElementById('w-current').innerHTML = `<span style="color:var(--alert)">OFFLINE</span>`;
+            document.getElementById('w-current').innerHTML = `<div style="color:var(--alert); padding: 20px;">Unable to load weather data</div>`;
         }
     }
     if(localStorage.getItem('exec_city')) document.getElementById('city-input').value = localStorage.getItem('exec_city');
@@ -537,29 +1430,71 @@
     let allNewsCache = [];
     let activeFilter = 'all';
 
-    // Diverse news sources across political spectrum and regions
     const NEWS_SOURCES = [
-        // === WORLD NEWS (Mainstream + Wire Services) ===
-        { name: "REUTERS", url: "https://feeds.reuters.com/reuters/topNews", cat: "world" },
-        { name: "BBC", url: "https://feeds.bbci.co.uk/news/world/rss.xml", cat: "world" },
-        { name: "AL JAZEERA", url: "https://www.aljazeera.com/xml/rss/all.xml", cat: "world" },
-        { name: "LE MONDE", url: "https://www.lemonde.fr/rss/une.xml", cat: "world" },
-        { name: "DER SPIEGEL", url: "https://www.spiegel.de/international/index.rss", cat: "world" },
-        
-        // === TECH ===
-        { name: "HACKER NEWS", url: "https://hnrss.org/best?points=300", cat: "tech" },
-        { name: "ARS TECHNICA", url: "https://feeds.arstechnica.com/arstechnica/features", cat: "tech" },
-        { name: "THE VERGE", url: "https://www.theverge.com/rss/index.xml", cat: "tech" },
-        
-        // === BUSINESS / ECONOMICS ===
-        { name: "ECONOMIST", url: "https://www.economist.com/finance-and-economics/rss.xml", cat: "business" },
-        { name: "FT", url: "https://www.ft.com/rss/home", cat: "business" },
-        
-        // === CULTURE / IDEAS ===
-        { name: "NYT", url: "https://rss.nytimes.com/services/xml/rss/nyt/MostViewed.xml", cat: "culture" },
-        { name: "THE ATLANTIC", url: "https://www.theatlantic.com/feed/best-of/", cat: "culture" },
-        { name: "GUARDIAN", url: "https://www.theguardian.com/world/rss", cat: "world" },
-    ];
+    // ============================
+    // === WORLD / GENERAL NEWS ===
+    // ============================
+
+    // BBC: Explicit "Most Read"
+    // Lean: Center-Left
+    { name: "BBC", url: "https://feeds.bbci.co.uk/news/rss.xml?edition=most_read", cat: "world", lean: "CL" },
+
+    // Le Monde: Explicit "Plus Lus" (Most Read)
+    // Lean: Center-Left
+    { name: "LE MONDE", url: "https://www.lemonde.fr/rss/plus-lus.xml", cat: "world", lean: "CL" },
+
+    
+    // ============================
+    // === TECHNOLOGY ===========
+    // ============================
+
+    // Hacker News: Points > 500 (High quality filter)
+    // Lean: Center-Right / Tech-Libertarian
+    { name: "HACKER NEWS (BEST)", url: "https://hnrss.org/best?points=500", cat: "tech", lean: "CR" },
+
+    // The Verge: Main Feed (Note: Verge mixes news/reviews, but this is their primary curated output)
+    // Lean: Center-Left
+    { name: "THE VERGE", url: "https://www.theverge.com/rss/index.xml", cat: "tech", lean: "CL" },
+
+    // Ars Technica: "Features" (Filters out daily news slop for long-form analysis)
+    // Lean: Center-Left
+    { name: "ARS TECHNICA", url: "http://feeds.arstechnica.com/arstechnica/features", cat: "tech", lean: "CL" },
+
+
+    // ============================
+    // === BUSINESS =============
+    // ============================
+
+    // CNBC: Explicit "Trending"
+    // Lean: Center
+    { name: "CNBC", url: "https://www.cnbc.com/id/100727362/device/rss/rss.html", cat: "business", lean: "C" },
+
+    // The Economist: "The World This Week" (Weekly curated summary, highest signal-to-noise ratio)
+    // Lean: Center / Neoliberal
+    { name: "THE ECONOMIST", url: "https://www.economist.com/the-world-this-week/rss.xml", cat: "business", lean: "C" },
+
+
+    // ============================
+    // === CULTURE / IDEAS ======
+    // ============================
+
+    // NYT: Explicit "Most Viewed"
+    // Lean: Center-Left
+    { name: "NYT VIEWED", url: "https://rss.nytimes.com/services/xml/rss/nyt/MostViewed.xml", cat: "culture", lean: "CL" },
+
+    // NYT: Explicit "Most Shared" (Often different from viewed; captures what people are discussing)
+    // Lean: Center-Left
+    { name: "NYT SHARED", url: "https://rss.nytimes.com/services/xml/rss/nyt/MostShared.xml", cat: "culture", lean: "CL" },
+
+    // The Atlantic: "Best Of" (Editorial selection)
+    // Lean: Center-Left
+    { name: "THE ATLANTIC", url: "https://www.theatlantic.com/feed/best-of/", cat: "culture", lean: "CL" },
+
+    // Arts & Letters Daily: "Curated" (Manually picked best essays from the web, 3 links/day)
+    // Lean: Center / Highbrow
+    { name: "AL DAILY", url: "https://www.aldaily.com/feed/", cat: "culture", lean: "C" }
+];
+
 
     function setupFilters() {
         document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -572,36 +1507,6 @@
         });
     }
 
-    function renderNews() {
-        const feedContainer = document.getElementById('news-feed');
-        const filtered = activeFilter === 'all' 
-            ? allNewsCache 
-            : allNewsCache.filter(n => n.cat === activeFilter);
-
-        if (filtered.length === 0) {
-            feedContainer.innerHTML = '<div class="news-empty">No articles in this category</div>';
-            return;
-        }
-
-        let html = '';
-        filtered.forEach(n => {
-            const domain = (() => { try { return new URL(n.link).hostname.replace('www.',''); } catch { return ''; } })();
-            const timeAgo = getTimeAgo(n.date);
-            
-            html += `
-                <div class="news-item">
-                    <div class="news-header">
-                        <span class="news-source cat-${n.cat}">${n.source}</span>
-                        <span class="news-time">${timeAgo}</span>
-                    </div>
-                    <a href="${n.link}" target="_blank" rel="noopener" class="news-title">${n.title}</a>
-                    <div class="news-domain">${domain}</div>
-                </div>
-            `;
-        });
-        feedContainer.innerHTML = html;
-    }
-
     function getTimeAgo(date) {
         const now = new Date();
         const diff = Math.floor((now - date) / 1000);
@@ -610,9 +1515,128 @@
         return Math.floor(diff / 86400) + 'd';
     }
 
+    // Shuffle helper
+    function shuffleArray(arr) {
+        const shuffled = [...arr];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+    }
+
+    // Smart selection: pick 10 balanced articles per category
+    function smartSelectArticles(articles, maxPerCategory = 10) {
+        // Group by category
+        const byCategory = {};
+        articles.forEach(a => {
+            if (!byCategory[a.cat]) byCategory[a.cat] = [];
+            byCategory[a.cat].push(a);
+        });
+        
+        const selected = [];
+        
+        Object.keys(byCategory).forEach(cat => {
+            const catArticles = byCategory[cat];
+            
+            // Find which leans exist in this category
+            const availableLeans = [...new Set(catArticles.map(a => a.lean))];
+            
+            const picked = [];
+            const usedTitles = new Set();
+            
+            // Round-robin through available leans to ensure balance
+            let round = 0;
+            while (picked.length < maxPerCategory && round < 20) {
+                let addedThisRound = false;
+                
+                for (const lean of availableLeans) {
+                    if (picked.length >= maxPerCategory) break;
+                    
+                    // Find candidates from this lean that we haven't picked yet
+                    const candidates = catArticles.filter(a => 
+                        a.lean === lean && 
+                        !picked.includes(a) &&
+                        !usedTitles.has(a.title.toLowerCase().slice(0, 50))
+                    );
+                    
+                    if (candidates.length > 0) {
+                        // Random pick from candidates
+                        const candidate = candidates[Math.floor(Math.random() * candidates.length)];
+                        picked.push(candidate);
+                        usedTitles.add(candidate.title.toLowerCase().slice(0, 50));
+                        addedThisRound = true;
+                    }
+                }
+                
+                // If we couldn't add anything this round, stop
+                if (!addedThisRound) break;
+                round++;
+            }
+            
+            // Shuffle for display variety
+            selected.push(...shuffleArray(picked));
+        });
+        
+        return selected;
+    }
+
+    function renderNews() {
+        const feedContainer = document.getElementById('news-feed');
+        
+        // Apply smart selection first
+        const smartArticles = smartSelectArticles(allNewsCache, 10);
+        
+        const filtered = activeFilter === 'all' 
+            ? smartArticles 
+            : smartArticles.filter(n => n.cat === activeFilter);
+
+        if (filtered.length === 0) {
+            feedContainer.innerHTML = '<div class="news-empty">No articles in this category</div>';
+            return;
+        }
+
+        const leanLabels = { L: 'Left', CL: 'Center-Left', C: 'Center', CR: 'Center-Right', R: 'Right' };
+        
+        let html = `
+            <div class="lean-legend">
+                <span style="font-weight:500;">Bias:</span>
+                <span class="lean-legend-item"><span class="lean-indicator lean-L"></span>Left</span>
+                <span class="lean-legend-item"><span class="lean-indicator lean-CL"></span>Center-Left</span>
+                <span class="lean-legend-item"><span class="lean-indicator lean-C"></span>Center</span>
+                <span class="lean-legend-item"><span class="lean-indicator lean-CR"></span>Center-Right</span>
+                <span class="lean-legend-item"><span class="lean-indicator lean-R"></span>Right</span>
+            </div>
+        `;
+        filtered.forEach(n => {
+            const domain = (() => { try { return new URL(n.link).hostname.replace('www.',''); } catch { return ''; } })();
+            const timeAgo = getTimeAgo(n.date);
+            const archiveUrl = `https://archive.ph/${n.link}`;
+            
+            html += `
+                <div class="news-item">
+                    <div class="news-header">
+                        <span class="lean-indicator lean-${n.lean}" title="${leanLabels[n.lean]}"></span>
+                        <span class="news-source cat-${n.cat}">${n.source}</span>
+                        <a href="${archiveUrl}" target="_blank" rel="noopener" class="archive-link" title="View on archive.ph">Archive</a>
+                        <span class="news-time">${timeAgo}</span>
+                    </div>
+                    <a href="${n.link}" target="_blank" rel="noopener" class="news-title">${n.title}</a>
+                    <div class="news-footer">
+                        <span class="news-domain">${domain}</span>
+                    </div>
+                </div>
+            `;
+        });
+        feedContainer.innerHTML = html;
+    }
+
     async function initNews() {
         const feedContainer = document.getElementById('news-feed');
-        feedContainer.innerHTML = '<div style="padding:30px; text-align:center; color:var(--text-dim)">Aggregating sources...</div>';
+        feedContainer.innerHTML = '<div class="news-empty loading">Loading articles...</div>';
+        
+        const now = new Date();
+        const threeHoursMs = 3 * 60 * 60 * 1000;
 
         const results = await Promise.allSettled(
             NEWS_SOURCES.map(async (src) => {
@@ -627,21 +1651,50 @@
                         items = Array.from(xml.querySelectorAll("entry"));
                     }
                     
-                    return items.slice(0, 3).map(item => {
-                        const title = item.querySelector("title")?.textContent || '';
+                    // Parse all items
+                    const parsed = items.map(item => {
+                        let title = item.querySelector("title")?.textContent || '';
                         let link = item.querySelector("link")?.textContent || item.querySelector("link")?.getAttribute("href") || '';
                         const pubDate = item.querySelector("pubDate")?.textContent || 
                                         item.querySelector("published")?.textContent || 
                                         item.querySelector("updated")?.textContent || new Date().toISOString();
                         
+                        // Google News RSS: extract real URL from description or use source URL
+                        if (src.url.includes('news.google.com')) {
+                            // Title often has " - Source" suffix, clean it for Google News
+                            title = title.replace(/ - [^-]+$/, '').trim();
+                            // Google News links are redirects, try to get original from source
+                            const sourceUrl = item.querySelector("source")?.getAttribute("url");
+                            if (sourceUrl) {
+                                // Build article URL from source domain + title slug (approximation)
+                                // The actual link goes through Google, but source domain is useful for display
+                            }
+                        }
+                        
                         return {
                             source: src.name,
                             cat: src.cat,
+                            lean: src.lean,
                             title: title.trim(),
                             link: link.trim(),
                             date: new Date(pubDate)
                         };
-                    }).filter(item => item.title && item.link);
+                    }).filter(item => item.title && item.link && !isNaN(item.date.getTime()));
+                    
+                    // STEP 1: Filter to only articles OLDER than 3 hours (allow fresh if not enough)
+                    let mature = parsed.filter(a => (now - a.date) >= threeHoursMs);
+                    
+                    // If not enough mature articles, include fresher ones too
+                    if (mature.length < 3) {
+                        mature = parsed;
+                    }
+                    
+                    // STEP 2: Take up to 5 valid articles from this source
+                    const selected = mature.slice(0, 5);
+                    
+                    console.log(`${src.name}: ${parsed.length} total → ${mature.length} mature → ${selected.length} selected`);
+                    return selected;
+                    
                 } catch (e) {
                     console.warn(`Failed to fetch ${src.name}:`, e);
                     return [];
@@ -649,14 +1702,15 @@
             })
         );
 
+        // Flatten: now we have max 5 articles per source, all >3h old
         allNewsCache = results
             .filter(r => r.status === 'fulfilled')
-            .flatMap(r => r.value)
-            .filter(n => !isNaN(n.date.getTime()))
-            .sort((a, b) => b.date - a.date);
+            .flatMap(r => r.value);
+        
+        console.log(`Total: ${allNewsCache.length} articles from ${NEWS_SOURCES.length} sources`);
 
         if (allNewsCache.length === 0) {
-            feedContainer.innerHTML = '<div style="padding:30px; text-align:center; color:var(--alert)">Connection failed. Check network.</div>';
+            feedContainer.innerHTML = '<div class="news-empty" style="color:var(--alert)">Unable to load news. Check your connection.</div>';
             return;
         }
 
