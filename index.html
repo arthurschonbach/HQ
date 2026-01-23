@@ -193,6 +193,29 @@
                 padding: 16px;
                 gap: 12px;
                 min-height: 60px;
+                flex-wrap: wrap;
+            }
+            
+            .todo-item.editing-mode {
+                flex-wrap: wrap;
+            }
+            
+            .todo-item.editing-mode .edit-input-task {
+                flex: 1 1 100%;
+                order: 2;
+                margin: 12px 0 0 0;
+                min-width: 0;
+            }
+            
+            .todo-item.editing-mode .todo-checkbox {
+                order: 1;
+            }
+            
+            .todo-item.editing-mode .todo-actions {
+                order: 3;
+                width: 100%;
+                justify-content: flex-end;
+                margin-top: 8px;
             }
             
             .todo-actions {
@@ -755,8 +778,14 @@
             border-bottom: 1px solid var(--border); 
             display: flex; 
             gap: 8px; 
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
             background: var(--surface);
+        }
+        .news-filters::-webkit-scrollbar {
+            display: none;
         }
         .filter-btn {
             font-size: 12px;
@@ -769,6 +798,8 @@
             font-family: inherit;
             font-weight: 500;
             transition: all var(--transition);
+            flex-shrink: 0;
+            white-space: nowrap;
         }
         .filter-btn:hover { 
             border-color: var(--accent); 
@@ -865,7 +896,7 @@
             font-size: 13px;
         }
         
-        /* Political lean indicator */
+        /* Political lean indicator - grayscale to avoid confusion with topic colors */
         .lean-indicator {
             width: 8px;
             height: 8px;
@@ -874,9 +905,9 @@
             margin-right: 6px;
             flex-shrink: 0;
         }
-        .lean-CL { background: #ffb74d; } /* Center-left - orange */
-        .lean-C { background: #9e9e9e; } /* Center - gray */
-        .lean-CR { background: #4dd0e1; } /* Center-right - cyan */
+        .lean-CL { background: #606060; } /* Center-left - dark gray */
+        .lean-C { background: #a0a0a0; } /* Center - medium gray */
+        .lean-CR { background: #d0d0d0; border: 1px solid #a0a0a0; } /* Center-right - light gray with border */
         
         .lean-legend {
             display: flex;
@@ -1521,6 +1552,7 @@
 
     // --- MODULE 3: NEWS (Diverse Sources) ---
     let allNewsCache = [];
+    let shuffledArticlesCache = []; // Stable shuffled version for "All" view
     let activeFilter = 'all';
 
     const NEWS_SOURCES = [
@@ -1677,12 +1709,9 @@
     function renderNews() {
         const feedContainer = document.getElementById('news-feed');
         
-        // Apply smart selection first
-        const smartArticles = smartSelectArticles(allNewsCache, 10);
-        
-        const filtered = activeFilter === 'all' 
-            ? smartArticles 
-            : smartArticles.filter(n => n.cat === activeFilter);
+        let filtered = activeFilter === 'all' 
+            ? shuffledArticlesCache  // Use stable shuffled cache
+            : shuffledArticlesCache.filter(n => n.cat === activeFilter);
 
         if (filtered.length === 0) {
             feedContainer.innerHTML = '<div class="news-empty">No articles in this category</div>';
@@ -1801,6 +1830,10 @@
         allNewsCache = results
             .filter(r => r.status === 'fulfilled')
             .flatMap(r => r.value);
+        
+        // Create stable shuffled cache once
+        const smartArticles = smartSelectArticles(allNewsCache, 10);
+        shuffledArticlesCache = shuffleArray(smartArticles);
         
         console.log(`Total: ${allNewsCache.length} articles from ${NEWS_SOURCES.length} sources`);
 
