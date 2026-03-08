@@ -318,7 +318,7 @@
         background:var(--bg-elevated); color:var(--text-muted);
     }
 
-    /* 7d delta badge */
+    /* 7d change badge (computed from CLOB price history) */
     .pred-delta {
         display:inline-flex; align-items:center; gap:2px;
         font-size:11px; font-weight:600; padding:2px 7px;
@@ -401,7 +401,7 @@
 
 <!-- ═══ PREDICTION MARKETS ═══ -->
 <div class="themes-section">
-    <div class="section-label">Prediction Markets <span class="info-tip section-info" data-tip="Real-money markets sorted by biggest 7d movers. Yes % = probability. 7d = weekly change in pts. Vol = money wagered. Use ← → keys to switch themes."><span class="info-dot">?</span></span></div>
+    <div class="section-label">Prediction Markets <span class="info-tip section-info" data-tip="Real-money markets ranked by activity. Yes % = probability. 7d = weekly change in pts (from CLOB price history). Vol = total money wagered. Use ← → keys to switch themes."><span class="info-dot">?</span></span></div>
     <div class="theme-tabs" id="themeTabs"></div>
     <div class="predictions-grid" id="predictionsGrid"></div>
 </div>
@@ -416,8 +416,81 @@
 /* ═══════════════════════════════════════════════════════════
    CONFIGURATION
    ═══════════════════════════════════════════════════════════ */
-const CORS_PROXY = 'https://corsproxy.io/?url=';
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 min
+const PRED_CACHE_TTL  = 2 * 60 * 1000;  // 2 min — show cache instantly, refresh in background if older
+const _predCache = {};                   // { themeId: { items, ts } }
+let _predAbort = null;                   // AbortController for current prediction load
+let _lastETFData = null;                 // cached ETF data — avoids refetch on resize
+
+/* ── Multi-proxy CORS fallback ── */
+const CORS_PROXIES = [
+    { prefix: 'https://corsproxy.io/?url='               },
+    { prefix: 'https://api.codetabs.com/v1/proxy?quest='  },
+    { prefix: 'https://api.allorigins.win/raw?url='       },
+];
+
+/**
+ * Fetch a URL through the first working CORS proxy.
+ * Tries direct fetch first (in case CORS headers are present),
+ * then each proxy in order, validating the response is real JSON.
+ * Remembers the last working proxy to avoid slow retries.
+ */
+let _lastWorkingProxy = -1; // index into CORS_PROXIES, -1 = direct
+
+async function corsProxyFetch(rawUrl, timeout = 10000) {
+    /* If we already know a working proxy, try it first */
+    if (_lastWorkingProxy >= 0) {
+        try {
+            const proxy = CORS_PROXIES[_lastWorkingProxy];
+            const url = proxy.prefix + encodeURIComponent(rawUrl);
+            const res = await fetch(url, { signal: AbortSignal.timeout(timeout) });
+            if (res.ok) {
+                const text = await res.text();
+                const trimmed = text.trimStart();
+                if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+                    return new Response(text, { status: 200, headers: { 'Content-Type': 'application/json' } });
+                }
+            }
+        } catch { /* cached proxy failed, try full chain */ }
+    }
+
+    /* 1. Try direct (no proxy) — skip if a proxy was previously needed */
+    if (_lastWorkingProxy < 0) {
+        try {
+            const res = await fetch(rawUrl, {
+                signal: AbortSignal.timeout(2500),
+                mode: 'cors',
+            });
+            if (res.ok) { _lastWorkingProxy = -1; return res; }
+        } catch { /* expected CORS block, continue */ }
+    }
+
+    /* 2. Try each proxy in sequence */
+    const errors = [];
+    for (let i = 0; i < CORS_PROXIES.length; i++) {
+        const proxy = CORS_PROXIES[i];
+        try {
+            const url = proxy.prefix + encodeURIComponent(rawUrl);
+            const res = await fetch(url, { signal: AbortSignal.timeout(timeout) });
+            if (!res.ok) { errors.push(`${proxy.prefix}: HTTP ${res.status}`); continue; }
+
+            /* Validate response body looks like JSON (not a redirect to a spam site) */
+            const text = await res.text();
+            const trimmed = text.trimStart();
+            if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+                _lastWorkingProxy = i;
+                return new Response(text, {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+            errors.push(`${proxy.prefix}: non-JSON body`);
+        } catch (e) {
+            errors.push(`${proxy.prefix}: ${e.message}`);
+        }
+    }
+    throw new Error('All CORS proxies failed: ' + errors.join(' | '));
+}
 
 /* ═══════════════════════════════════════════════════════════
    ETF DATA
@@ -459,18 +532,14 @@ function getMockETFData() {
 async function fetchETFData() {
     try {
         const promises = ETF_CONFIG.map(async (etf, i) => {
-            // Fetch 1-month chart data AND YTD data in parallel
-            const chartUrl = `${CORS_PROXY}${encodeURIComponent(
-                `https://query1.finance.yahoo.com/v8/finance/chart/${etf.ticker}?range=1mo&interval=1d&includePrePost=false`
-            )}`;
-            const ytdUrl = `${CORS_PROXY}${encodeURIComponent(
-                `https://query1.finance.yahoo.com/v8/finance/chart/${etf.ticker}?range=ytd&interval=1mo&includePrePost=false`
-            )}`;
+            const chartRawUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${etf.ticker}?range=1mo&interval=1d&includePrePost=false`;
+            const ytdRawUrl   = `https://query1.finance.yahoo.com/v8/finance/chart/${etf.ticker}?range=ytd&interval=1mo&includePrePost=false`;
+
             const [chartRes, ytdRes] = await Promise.all([
-                fetch(chartUrl, { signal: AbortSignal.timeout(6000) }),
-                fetch(ytdUrl,   { signal: AbortSignal.timeout(6000) }).catch(() => null),
+                corsProxyFetch(chartRawUrl),
+                corsProxyFetch(ytdRawUrl).catch(() => null),
             ]);
-            if (!chartRes.ok) throw new Error(chartRes.status);
+            if (!chartRes) throw new Error('No response');
             const json = await chartRes.json();
             const meta = json.chart.result[0].meta;
             const quotes = json.chart.result[0].indicators.quote[0];
@@ -483,7 +552,7 @@ async function fetchETFData() {
             // Calculate YTD from the YTD range query
             let ytdPct = null;
             try {
-                if (ytdRes && ytdRes.ok) {
+                if (ytdRes) {
                     const ytdJson = await ytdRes.json();
                     const ytdStart = ytdJson.chart.result[0].meta.chartPreviousClose;
                     if (ytdStart) ytdPct = ((price - ytdStart) / ytdStart) * 100;
@@ -546,7 +615,7 @@ const PREDICTIONS = {
     ],
     'geopolitics': [
         { q:'Ukraine ceasefire agreement signed in 2026?',      yes:34, d7:+4, vol:'$7.8M', end:'Dec 2026', src:'Polymarket' },
-        { q:'China–Taiwan military escalation in 2026?',        yes:8,  d7:-1, vol:'$5.2M', end:'Dec 2026', src:'Kalshi' },
+        { q:'China\u2013Taiwan military escalation in 2026?',        yes:8,  d7:-1, vol:'$5.2M', end:'Dec 2026', src:'Kalshi' },
         { q:'BRICS common currency announced?',                 yes:12, d7:0,  vol:'$1.6M', end:'Dec 2026', src:'Polymarket' },
         { q:'NATO adds new member state in 2026?',              yes:26, d7:+3, vol:'$740K',  end:'Dec 2026', src:'Kalshi' },
         { q:'Iran new nuclear deal framework by 2026?',         yes:15, d7:-2, vol:'$980K',  end:'Dec 2026', src:'Polymarket' },
@@ -570,45 +639,165 @@ const PREDICTIONS = {
     ],
 };
 
+/* ── Polymarket helpers ── */
+const SPORTS_TAG_SLUGS = new Set([
+    'sports','nba','nfl','mlb','nhl','mls','soccer','football','basketball',
+    'baseball','hockey','tennis','golf','pga','boxing','mma','ufc','cricket',
+    'racing','formula-1','f1','epl','la-liga','bundesliga','serie-a','ligue-1',
+    'champions-league','wta','atp','ncaa','college-basketball','college-football',
+    'nba-champion','nba-finals','super-bowl','world-series','stanley-cup',
+    'world-cup','euros','olympics','japan-j2-league','j-league','wnba',
+    'ncaa-football','ncaa-basketball','rugby','handball','volleyball','esports',
+]);
+
+function isSportsEvent(event) {
+    // Check tags
+    const tags = (event.tags || []).map(t => (t.slug || '').toLowerCase());
+    if (tags.some(t => SPORTS_TAG_SLUGS.has(t))) return true;
+    // Check if any market has a sportsMarketType
+    if ((event.markets || []).some(m => m.sportsMarketType)) return true;
+    // Heuristic: title/description mentions common sports patterns
+    const title = (event.title || '').toLowerCase();
+    if (/\bvs\.?\b/.test(title) && /\b(fc|united|city|rovers|afc)\b/i.test(title)) return true;
+    if (/\b(o\/u|over\/under|spread|moneyline|set \d|game \d)\b/i.test(title)) return true;
+    return false;
+}
+
+/* Tag slugs per theme – ONLY verified slugs that return results from Polymarket */
+const THEME_TAG_MAP = {
+    'politics':    ['politics','elections','us-presidential-election','congress','trump','president'],
+    'ai-tech':     ['ai','openai','google','apple','nvidia'],
+    'economy':     ['economy','crypto','bitcoin','ethereum','fed-rates','inflation','tariffs'],
+    'geopolitics': ['geopolitics','ukraine','china','nato','middle-east','russia','europe','iran'],
+    'climate':     ['climate','oil','weather','nuclear','energy'],
+    'science':     ['science','space','spacex','nasa','health'],
+};
+
 /* Try fetching real prediction market data from Polymarket */
 async function fetchPolymarketData(tag) {
     try {
-        const tagMap = {
-            'politics':'politics', 'ai-tech':'ai', 'economy':'economics',
-            'geopolitics':'geopolitics', 'climate':'climate', 'science':'science',
-        };
-        const pTag = tagMap[tag] || tag;
-        const url = `https://gamma-api.polymarket.com/markets?closed=false&limit=6&order=volume&ascending=false&tag=${pTag}`;
-        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-        if (!res.ok) throw new Error(res.status);
-        const markets = await res.json();
-        if (!markets.length) throw new Error('empty');
-        // Fetch 7d history for each market in parallel
-        const results = await Promise.all(markets.map(async m => {
-            const prices = JSON.parse(m.outcomePrices || '["0.5","0.5"]');
-            const yes = Math.round(parseFloat(prices[0]) * 100);
-            const vol = m.volume ? formatVolume(m.volume) : '—';
-            const end = m.endDate ? new Date(m.endDate).toLocaleDateString('en',{month:'short',year:'numeric'}) : '—';
-            let d7 = null;
+        const tagSlugs = THEME_TAG_MAP[tag] || [tag];
+        let allEvents = [];
+
+        /* Fetch events for each tag slug in parallel — use tag_slug= (tag= is ignored!) */
+        const fetches = tagSlugs.map(async (slug) => {
             try {
-                const clobId = m.clobTokenIds ? JSON.parse(m.clobTokenIds)[0] : null;
-                if (clobId) {
-                    const hUrl = `https://clob.polymarket.com/prices-history?market=${clobId}&interval=1w&fidelity=1440`;
-                    const hRes = await fetch(hUrl, { signal: AbortSignal.timeout(4000) });
-                    if (hRes.ok) {
-                        const hist = await hRes.json();
-                        if (hist.history && hist.history.length >= 2) {
-                            const oldest = parseFloat(hist.history[0].p);
-                            const newest = parseFloat(hist.history[hist.history.length - 1].p);
-                            d7 = Math.round((newest - oldest) * 100);
-                        }
-                    }
-                }
-            } catch(e) { /* history fetch failed, d7 stays null */ }
-            return { q: m.question, yes, d7, vol, end, src:'Polymarket', live:true, url:`https://polymarket.com/event/${m.slug}` };
-        }));
-        return results;
-    } catch(e) {
+                const rawUrl = `https://gamma-api.polymarket.com/events?closed=false&limit=10&order=volume&ascending=false&tag_slug=${slug}`;
+                const res = await corsProxyFetch(rawUrl);
+                return await res.json();
+            } catch { return []; }
+        });
+        const results = await Promise.all(fetches);
+        results.forEach(arr => allEvents.push(...arr));
+
+        /* De-duplicate by event id */
+        const seen = new Set();
+        allEvents = allEvents.filter(e => {
+            if (seen.has(e.id)) return false;
+            seen.add(e.id);
+            return true;
+        });
+
+        /* Filter out sports events */
+        allEvents = allEvents.filter(e => !isSportsEvent(e));
+
+        /* Must have at least one active market with meaningful volume */
+        allEvents = allEvents.filter(e => {
+            const vol = e.volume || 0;
+            if (vol < 5000) return false;
+            const activeMarkets = (e.markets || []).filter(m => m.active && !m.closed);
+            return activeMarkets.length > 0;
+        });
+
+        /* ── Score each event by "interestingness" ──
+           Primary signal: 24h volume (concrete, always accurate).
+           Secondary: total volume as tiebreaker.
+           Avoid stale mega-markets with zero recent activity. */
+        allEvents.forEach(e => {
+            const vol24 = e.volume24hr || 0;
+            const volTotal = e.volume || 0;
+            /* Score: 70% recent 24h volume + 30% total volume (both log-scaled) */
+            e._score = (Math.log10(vol24 + 1) * 70) + (Math.log10(volTotal + 1) * 30);
+        });
+
+        /* Sort by interestingness score */
+        allEvents.sort((a, b) => (b._score || 0) - (a._score || 0));
+
+        /* Take top 6 */
+        allEvents = allEvents.slice(0, 6);
+
+        if (allEvents.length === 0) return null;
+
+        /* Transform events into card data */
+        const items = allEvents.map(event => {
+            const activeMarkets = (event.markets || [])
+                .filter(m => m.active && !m.closed && m.outcomePrices);
+
+            if (activeMarkets.length === 0) return null;
+
+            const isMultiOutcome = event.negRisk || activeMarkets.length > 3;
+
+            /* For multi-outcome events: pick the leader (highest-priced outcome).
+               For binary events: use the highest-volume market. */
+            let topMarket;
+            if (isMultiOutcome) {
+                topMarket = activeMarkets.reduce((best, m) => {
+                    try {
+                        const p = parseFloat(JSON.parse(m.outcomePrices)[0]);
+                        const bp = parseFloat(JSON.parse(best.outcomePrices)[0]);
+                        return p > bp ? m : best;
+                    } catch { return best; }
+                }, activeMarkets[0]);
+            } else {
+                activeMarkets.sort((a, b) =>
+                    (parseFloat(b.volume) || 0) - (parseFloat(a.volume) || 0)
+                );
+                topMarket = activeMarkets[0];
+            }
+
+            /* Build the question text */
+            let q;
+            if (isMultiOutcome) {
+                /* Show "Event Title: Top Mover" for multi-outcome */
+                const outcome = topMarket.groupItemTitle || topMarket.question || '';
+                const eventTitle = event.title || '';
+                q = outcome && outcome !== eventTitle
+                    ? `${eventTitle}: ${outcome}`
+                    : eventTitle;
+            } else {
+                q = topMarket.question || event.title;
+            }
+
+            /* Parse yes probability */
+            let yes;
+            try {
+                const prices = JSON.parse(topMarket.outcomePrices);
+                yes = Math.round(parseFloat(prices[0]) * 100);
+            } catch { yes = 50; }
+
+            const vol = formatVolume(event.volume || parseFloat(topMarket.volume) || 0);
+            const endDate = event.endDate || topMarket.endDate;
+            const end = endDate
+                ? new Date(endDate).toLocaleDateString('en', { month:'short', year:'numeric' })
+                : '—';
+
+            /* Extract CLOB token ID for accurate price history lookup */
+            let _tokenId = null;
+            try {
+                const ids = JSON.parse(topMarket.clobTokenIds);
+                _tokenId = ids[0]; // "Yes" outcome token
+            } catch {}
+
+            return {
+                q, yes, d7: null, vol, end, _tokenId,
+                src: 'Polymarket',
+                live: true,
+                url: `https://polymarket.com/event/${event.slug}`,
+            };
+        }).filter(Boolean);
+
+        return items.length >= 2 ? items : null;
+    } catch (e) {
         console.warn(`Polymarket fetch failed for "${tag}":`, e.message);
         return null;
     }
@@ -618,6 +807,22 @@ function formatVolume(v) {
     if (v >= 1e6) return '$' + (v/1e6).toFixed(1) + 'M';
     if (v >= 1e3) return '$' + (v/1e3).toFixed(0) + 'K';
     return '$' + v;
+}
+
+/* Fetch ACTUAL 7d price change from CLOB price-history API.
+   Returns integer percentage-point change (e.g. +3 means rose 3 pts), or null on failure.
+   Uses fidelity=1440 → ~7 data points (one per day over a week). */
+async function fetchClobPriceChange(tokenId) {
+    try {
+        const url = `https://clob.polymarket.com/prices-history?market=${tokenId}&interval=1w&fidelity=1440`;
+        const res = await corsProxyFetch(url, 8000);
+        const data = await res.json();
+        const history = data?.history;
+        if (!history || history.length < 2) return null;
+        const first = parseFloat(history[0].p);
+        const last  = parseFloat(history[history.length - 1].p);
+        return Math.round((last - first) * 100);
+    } catch { return null; }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -747,10 +952,16 @@ let activeTheme = THEMES[0].id;
 
 function renderThemeTabs() {
     const container = document.getElementById('themeTabs');
-    container.innerHTML = '';
+    if (container.children.length > 0) {
+        container.querySelectorAll('.theme-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.theme === activeTheme);
+        });
+        return;
+    }
     THEMES.forEach(t => {
         const tab = document.createElement('div');
         tab.className = `theme-tab ${t.id === activeTheme ? 'active' : ''}`;
+        tab.dataset.theme = t.id;
         tab.innerHTML = `<span class="tab-icon">${t.icon}</span> ${t.label}`;
         tab.onclick = () => {
             activeTheme = t.id;
@@ -778,12 +989,21 @@ function renderPredictions(items) {
         if (item.url) card.style.cursor = 'pointer';
         if (item.url) card.onclick = () => window.open(item.url, '_blank');
 
+        /* 7d delta badge — accurate, computed from CLOB price history */
+        const deltaBadge = (item.d7 !== null && item.d7 !== undefined)
+            ? `<span class="pred-delta ${item.d7 > 0 ? 'up' : item.d7 < 0 ? 'down' : 'flat'}">${
+                item.d7 > 0 ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 10V2M6 2L2 6M6 2L10 6"/></svg>+' + item.d7
+                : item.d7 < 0 ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2V10M6 10L2 6M6 10L10 6"/></svg>' + item.d7
+                : '\u2014'
+              }pt</span>`
+            : '';
+
         card.innerHTML = `
             <div class="pred-question">${item.q}</div>
             <div class="pred-bar-section">
                 <div class="pred-probabilities">
                     <span class="pred-yes ${probClass}">${item.yes}% <span style="font-size:11px;font-weight:500;color:var(--text-muted)">Yes</span>
-                        ${item.d7 !== null && item.d7 !== undefined ? `<span class="pred-delta ${item.d7 > 0 ? 'up' : item.d7 < 0 ? 'down' : 'flat'}">${item.d7 > 0 ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 10V2M6 2L2 6M6 2L10 6"/></svg>+' + item.d7 : item.d7 < 0 ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2V10M6 10L2 6M6 10L10 6"/></svg>' + item.d7 : '—'}pt</span>` : ''}
+                        ${deltaBadge}
                     </span>
                     <span class="pred-no">${100 - item.yes}% No</span>
                 </div>
@@ -816,26 +1036,144 @@ function renderPredictions(items) {
    ═══════════════════════════════════════════════════════════ */
 async function loadETFs() {
     const live = await fetchETFData();
+    if (live) console.log('[HQ] ETF data: LIVE ✓');
+    else console.warn('[HQ] ETF data: using mock fallback');
     const data = live || getMockETFData();
+    _lastETFData = data;
     renderETFs(data);
 }
 
-async function loadPredictions(themeId) {
-    const grid = document.getElementById('predictionsGrid');
-    // Show skeleton while loading
-    grid.innerHTML = Array(6).fill(0).map(() => `
-        <div class="pred-card">
-            <div class="skeleton" style="height:18px;width:85%;margin-bottom:8px"></div>
-            <div class="skeleton" style="height:14px;width:60%;margin-bottom:14px"></div>
-            <div class="skeleton" style="height:28px;width:40%;margin-bottom:8px"></div>
-            <div class="skeleton" style="height:8px;width:100%;margin-bottom:14px"></div>
-            <div class="skeleton" style="height:12px;width:50%"></div>
-        </div>
-    `).join('');
+async function loadPredictions(themeId, { force = false, silent = false } = {}) {
+    /* Abort any in-flight prediction load (user switched themes fast) */
+    if (_predAbort) { _predAbort.abort(); _predAbort = null; }
+    const myAbort = new AbortController();
+    _predAbort = myAbort;
 
+    const cached = _predCache[themeId];
+    const age = cached ? Date.now() - cached.ts : Infinity;
+
+    /* ── Phase 0: Instant cache hit ── */
+    if (cached && !force) {
+        renderPredictions(cached.items);
+        if (age < PRED_CACHE_TTL) {
+            /* Fresh enough — but stream in missing CLOB deltas if needed */
+            const needDeltas = cached.items.some(it => it._tokenId && it.d7 === null);
+            if (needDeltas) {
+                cached.items.forEach(async (item, idx) => {
+                    if (!item._tokenId || item.d7 !== null) return;
+                    const d7 = await fetchClobPriceChange(item._tokenId);
+                    item.d7 = d7; // persist even if user switched away
+                    if (myAbort.signal.aborted) return; // only skip DOM patch
+                    if (activeTheme === themeId) patchDeltaBadge(idx, item);
+                });
+            }
+            schedulePreload(themeId);
+            return;
+        }
+        /* Stale — show cached, silently refresh below */
+        silent = true;
+    }
+
+    /* ── Phase 1: Skeleton (only if no cache) ── */
+    if (!cached && !silent) {
+        const grid = document.getElementById('predictionsGrid');
+        grid.innerHTML = Array(6).fill(0).map(() => `
+            <div class="pred-card">
+                <div class="skeleton" style="height:18px;width:85%;margin-bottom:8px"></div>
+                <div class="skeleton" style="height:14px;width:60%;margin-bottom:14px"></div>
+                <div class="skeleton" style="height:28px;width:40%;margin-bottom:8px"></div>
+                <div class="skeleton" style="height:8px;width:100%;margin-bottom:14px"></div>
+                <div class="skeleton" style="height:12px;width:50%"></div>
+            </div>
+        `).join('');
+    }
+
+    /* ── Phase 2: Fetch Gamma data ── */
     const live = await fetchPolymarketData(themeId);
+    if (myAbort.signal.aborted) return; // user switched away
+
     const items = live || PREDICTIONS[themeId] || [];
-    renderPredictions(items);
+    const isLive = !!live;
+    if (isLive) console.log(`[HQ] Predictions "${themeId}": LIVE ✓ (${items.length} items)`);
+    else console.warn(`[HQ] Predictions "${themeId}": using mock fallback`);
+
+    /* Render immediately (d7 = null, badges will appear later) */
+    _predCache[themeId] = { items, ts: Date.now() };
+    if (activeTheme === themeId) renderPredictions(items);
+
+    /* ── Phase 3: Stream in 7d deltas from CLOB (non-blocking) ── */
+    if (isLive) {
+        const clobPromises = items.map(async (item, idx) => {
+            if (!item._tokenId) return;
+            const d7 = await fetchClobPriceChange(item._tokenId);
+            item.d7 = d7; // persist even if user switched away
+            if (myAbort.signal.aborted) return; // only skip DOM patch
+            if (activeTheme === themeId) patchDeltaBadge(idx, item);
+        });
+        await Promise.all(clobPromises);
+        if (!myAbort.signal.aborted) {
+            _predCache[themeId] = { items, ts: Date.now() };
+        }
+    }
+
+    /* ── Phase 4: Preload adjacent themes ── */
+    if (!myAbort.signal.aborted) schedulePreload(themeId);
+}
+
+/* Patch a single d7 badge into an already-rendered card (avoids full re-render) */
+function patchDeltaBadge(cardIndex, item) {
+    const grid = document.getElementById('predictionsGrid');
+    /* Cards are sorted by |d7|, but during streaming d7 arrives incrementally.
+       We re-sort and re-render once all deltas are in. For now, patch in-place. */
+    const cards = grid.querySelectorAll('.pred-card');
+    const card = cards[cardIndex];
+    if (!card) return;
+    const yesSpan = card.querySelector('.pred-yes');
+    if (!yesSpan) return;
+    /* Remove any existing delta badge */
+    const old = yesSpan.querySelector('.pred-delta');
+    if (old) old.remove();
+    if (item.d7 === null || item.d7 === undefined) return;
+    const cls = item.d7 > 0 ? 'up' : item.d7 < 0 ? 'down' : 'flat';
+    const arrow = item.d7 > 0
+        ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 10V2M6 2L2 6M6 2L10 6"/></svg>+' + item.d7
+        : item.d7 < 0
+        ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2V10M6 10L2 6M6 10L10 6"/></svg>' + item.d7
+        : '\u2014';
+    const badge = document.createElement('span');
+    badge.className = `pred-delta ${cls}`;
+    badge.innerHTML = `${arrow}pt`;
+    yesSpan.appendChild(badge);
+}
+
+/* Preload adjacent themes in background (idle priority) */
+function schedulePreload(currentThemeId) {
+    const idx = THEMES.findIndex(t => t.id === currentThemeId);
+    const neighbors = [
+        THEMES[(idx + 1) % THEMES.length].id,
+        THEMES[(idx - 1 + THEMES.length) % THEMES.length].id,
+    ];
+    /* Use requestIdleCallback if available, else setTimeout */
+    const schedule = window.requestIdleCallback || (fn => setTimeout(fn, 300));
+    neighbors.forEach(id => {
+        const c = _predCache[id];
+        if (c && (Date.now() - c.ts) < PRED_CACHE_TTL) return; // already fresh
+        schedule(() => {
+            if (activeTheme !== currentThemeId) return; // user moved on
+            /* Silently fetch without rendering — just populate cache */
+            preloadTheme(id);
+        });
+    });
+}
+
+async function preloadTheme(themeId) {
+    try {
+        const items = await fetchPolymarketData(themeId);
+        if (!items) return;
+        _predCache[themeId] = { items, ts: Date.now() };
+        /* CLOB deltas deferred to loadPredictions — saves ~6 requests per preloaded theme */
+        console.log(`[HQ] Preloaded "${themeId}" ✓`);
+    } catch { /* silent */ }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -858,18 +1196,20 @@ async function init() {
         loadPredictions(activeTheme),
     ]);
 
-    // Auto-refresh
+    // Auto-refresh — force bypasses cache
     setInterval(() => {
         updateTime();
         loadETFs();
-        loadPredictions(activeTheme);
+        loadPredictions(activeTheme, { force: true });
     }, REFRESH_INTERVAL);
 }
 
 // Handle sparkline resize
 window.addEventListener('resize', () => {
     clearTimeout(window._resizeTimer);
-    window._resizeTimer = setTimeout(() => loadETFs(), 200);
+    window._resizeTimer = setTimeout(() => {
+        if (_lastETFData) renderETFs(_lastETFData);
+    }, 200);
 });
 
 init();
