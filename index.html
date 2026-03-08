@@ -86,6 +86,10 @@
         0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(52,211,153,0.4); }
         50% { opacity:.7; box-shadow:0 0 0 6px rgba(52,211,153,0); }
     }
+    .live-badge.closed {
+        color:var(--text-muted); background:var(--bg-elevated);
+    }
+    .closed-icon { font-size:9px; opacity:0.5; line-height:1; }
 
     /* ═══════════════════════════════════════════
        SECTION TITLES
@@ -143,6 +147,26 @@
         margin-top:8px; padding-top:10px; border-top:1px solid var(--border-subtle);
     }
     .etf-meta span b { color:var(--text-secondary); font-weight:600; }
+    .etf-day-label {
+        font-size:10px; font-weight:500; opacity:0.6;
+        margin-left:2px; letter-spacing:0.3px;
+    }
+    .etf-range {
+        display:flex; align-items:center; gap:8px;
+        font-size:10px; color:var(--text-muted);
+        margin-top:6px;
+    }
+    .etf-range .range-label b { color:var(--text-secondary); font-weight:600; }
+    .etf-range .range-track {
+        flex:1; height:4px; background:var(--bg-elevated);
+        border-radius:4px; position:relative;
+    }
+    .etf-range .range-dot {
+        position:absolute; top:50%; width:8px; height:8px;
+        background:var(--text-secondary); border-radius:50%;
+        transform:translate(-50%,-50%);
+        box-shadow:0 0 0 2px var(--bg-card);
+    }
     .sparkline-wrap { width:100%; height:52px; margin-top:4px; }
     .sparkline-wrap canvas { width:100%; height:100%; display:block; }
 
@@ -294,6 +318,18 @@
         background:var(--bg-elevated); color:var(--text-muted);
     }
 
+    /* 7d delta badge */
+    .pred-delta {
+        display:inline-flex; align-items:center; gap:2px;
+        font-size:11px; font-weight:600; padding:2px 7px;
+        border-radius:6px; margin-left:6px; vertical-align:middle;
+        letter-spacing:-0.2px;
+    }
+    .pred-delta.up   { color:var(--green); background:var(--green-dim); }
+    .pred-delta.down { color:var(--red);   background:var(--red-dim); }
+    .pred-delta.flat { color:var(--text-muted); background:var(--bg-elevated); }
+    .pred-delta svg  { width:11px; height:11px; }
+
     /* probability color helpers */
     .prob-high { color:#34D399; }
     .prob-mid  { color:#FBBF24; }
@@ -355,17 +391,17 @@
     </div>
     <div class="header-right">
         <span class="header-date" id="headerDate"></span>
-        <div class="live-badge"><span class="live-dot"></span> Live</div>
+        <div class="live-badge" id="marketBadge"><span class="live-dot"></span> Live</div>
     </div>
 </header>
 
 <!-- ═══ ETF SECTION ═══ -->
-<div class="section-label">Market ETFs <span class="info-tip section-info" data-tip="Exchange-Traded Funds tracking major global indices. Prices update every 5 min during market hours. Chart shows 1-month daily closes."><span class="info-dot">?</span></span></div>
+<div class="section-label">Market ETFs <span class="info-tip section-info" data-tip="EUR ETFs tracking major indices. Day % = change vs yesterday's close. L/H = today's low–high range with price position. Open/Prev = today's open & yesterday's close. YTD = since Jan 1. Chart = 1-month."><span class="info-dot">?</span></span></div>
 <div class="etf-grid" id="etfGrid"></div>
 
 <!-- ═══ PREDICTION MARKETS ═══ -->
 <div class="themes-section">
-    <div class="section-label">Prediction Markets <span class="info-tip section-info" data-tip="Markets where people bet on real-world outcomes. The Yes % is the crowd-estimated probability based on real money — not polls or opinions."><span class="info-dot">?</span></span></div>
+    <div class="section-label">Prediction Markets <span class="info-tip section-info" data-tip="Real-money markets sorted by biggest 7d movers. Yes % = probability. 7d = weekly change in pts. Vol = money wagered. Use ← → keys to switch themes."><span class="info-dot">?</span></span></div>
     <div class="theme-tabs" id="themeTabs"></div>
     <div class="predictions-grid" id="predictionsGrid"></div>
 </div>
@@ -388,9 +424,9 @@ const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 min
    ═══════════════════════════════════════════════════════════ */
 const ETF_CONFIG = [
     { name:'MSCI World',        ticker:'IWDA.AS',  currency:'€', color:'#818CF8' },
-    { name:'Nasdaq 100',        ticker:'CNDX.AS',  currency:'€', color:'#34D399' },
-    { name:'Stoxx 600',         ticker:'EXSA.DE',  currency:'€', color:'#F59E0B' },
-    { name:'Emerging Markets',  ticker:'EMIM.AS',  currency:'€', color:'#F472B6' },
+    { name:'Nasdaq 100',        ticker:'CNDX.AS',  currency:'€', color:'#38BDF8' },
+    { name:'Stoxx 600',         ticker:'EXSA.DE',  currency:'€', color:'#FB923C' },
+    { name:'Emerging Markets',  ticker:'EMIM.AS',  currency:'€', color:'#C084FC' },
 ];
 
 /* Generate realistic mock sparkline data */
@@ -485,52 +521,52 @@ const THEMES = [
 
 const PREDICTIONS = {
     'politics': [
-        { q:'Republicans win 2026 US Senate majority?',        yes:62, vol:'$4.2M', end:'Nov 2026', src:'Polymarket' },
-        { q:'US federal AI regulation signed into law by 2026?',yes:38, vol:'$1.8M', end:'Dec 2026', src:'Kalshi' },
-        { q:'French snap election held in 2026?',              yes:21, vol:'$620K',  end:'Dec 2026', src:'Polymarket' },
-        { q:'Trump approval above 45% in March 2026?',         yes:44, vol:'$2.1M', end:'Mar 2026', src:'Kalshi' },
-        { q:'US government shutdown before July 2026?',         yes:33, vol:'$1.4M', end:'Jul 2026', src:'Polymarket' },
-        { q:'EU Digital Services Act major enforcement action?', yes:56, vol:'$480K',  end:'Dec 2026', src:'Kalshi' },
+        { q:'Republicans win 2026 US Senate majority?',        yes:62, d7:+3, vol:'$4.2M', end:'Nov 2026', src:'Polymarket' },
+        { q:'US federal AI regulation signed into law by 2026?',yes:38, d7:-2, vol:'$1.8M', end:'Dec 2026', src:'Kalshi' },
+        { q:'French snap election held in 2026?',              yes:21, d7:+5, vol:'$620K',  end:'Dec 2026', src:'Polymarket' },
+        { q:'Trump approval above 45% in March 2026?',         yes:44, d7:-1, vol:'$2.1M', end:'Mar 2026', src:'Kalshi' },
+        { q:'US government shutdown before July 2026?',         yes:33, d7:0,  vol:'$1.4M', end:'Jul 2026', src:'Polymarket' },
+        { q:'EU Digital Services Act major enforcement action?', yes:56, d7:+4, vol:'$480K',  end:'Dec 2026', src:'Kalshi' },
     ],
     'ai-tech': [
-        { q:'GPT-5 released before July 2026?',                yes:72, vol:'$8.1M', end:'Jul 2026', src:'Polymarket' },
-        { q:'NVIDIA market cap exceeds $5T in 2026?',          yes:41, vol:'$3.4M', end:'Dec 2026', src:'Kalshi' },
-        { q:'OpenAI IPO in 2026?',                             yes:55, vol:'$5.7M', end:'Dec 2026', src:'Polymarket' },
-        { q:'AI-generated movie wins major film festival?',     yes:18, vol:'$920K',  end:'Dec 2026', src:'Kalshi' },
-        { q:'Autonomous vehicles approved in 10+ US states?',   yes:34, vol:'$1.1M', end:'Dec 2026', src:'Polymarket' },
-        { q:'Major AI lab announces AGI-level benchmark?',      yes:28, vol:'$2.8M', end:'Dec 2026', src:'Kalshi' },
+        { q:'GPT-5 released before July 2026?',                yes:72, d7:+6, vol:'$8.1M', end:'Jul 2026', src:'Polymarket' },
+        { q:'NVIDIA market cap exceeds $5T in 2026?',          yes:41, d7:-3, vol:'$3.4M', end:'Dec 2026', src:'Kalshi' },
+        { q:'OpenAI IPO in 2026?',                             yes:55, d7:+2, vol:'$5.7M', end:'Dec 2026', src:'Polymarket' },
+        { q:'AI-generated movie wins major film festival?',     yes:18, d7:+1, vol:'$920K',  end:'Dec 2026', src:'Kalshi' },
+        { q:'Autonomous vehicles approved in 10+ US states?',   yes:34, d7:-4, vol:'$1.1M', end:'Dec 2026', src:'Polymarket' },
+        { q:'Major AI lab announces AGI-level benchmark?',      yes:28, d7:+7, vol:'$2.8M', end:'Dec 2026', src:'Kalshi' },
     ],
     'economy': [
-        { q:'Fed funds rate below 3.5% by end of 2026?',       yes:58, vol:'$6.3M', end:'Dec 2026', src:'Kalshi' },
-        { q:'S&P 500 reaches 7,000 before 2027?',              yes:45, vol:'$4.9M', end:'Dec 2026', src:'Polymarket' },
-        { q:'Bitcoin exceeds $150K in 2026?',                   yes:37, vol:'$12.4M', end:'Dec 2026', src:'Polymarket' },
-        { q:'US unemployment rises above 5%?',                  yes:22, vol:'$1.7M', end:'Dec 2026', src:'Kalshi' },
-        { q:'Eurozone inflation falls below 2% (sustained)?',   yes:49, vol:'$890K',  end:'Dec 2026', src:'Kalshi' },
-        { q:'US GDP growth exceeds 3% in 2026?',                yes:31, vol:'$1.3M', end:'Dec 2026', src:'Polymarket' },
+        { q:'Fed funds rate below 3.5% by end of 2026?',       yes:58, d7:+2, vol:'$6.3M', end:'Dec 2026', src:'Kalshi' },
+        { q:'S&P 500 reaches 7,000 before 2027?',              yes:45, d7:-5, vol:'$4.9M', end:'Dec 2026', src:'Polymarket' },
+        { q:'Bitcoin exceeds $150K in 2026?',                   yes:37, d7:+8, vol:'$12.4M', end:'Dec 2026', src:'Polymarket' },
+        { q:'US unemployment rises above 5%?',                  yes:22, d7:+1, vol:'$1.7M', end:'Dec 2026', src:'Kalshi' },
+        { q:'Eurozone inflation falls below 2% (sustained)?',   yes:49, d7:-2, vol:'$890K',  end:'Dec 2026', src:'Kalshi' },
+        { q:'US GDP growth exceeds 3% in 2026?',                yes:31, d7:0,  vol:'$1.3M', end:'Dec 2026', src:'Polymarket' },
     ],
     'geopolitics': [
-        { q:'Ukraine ceasefire agreement signed in 2026?',      yes:34, vol:'$7.8M', end:'Dec 2026', src:'Polymarket' },
-        { q:'China–Taiwan military escalation in 2026?',        yes:8,  vol:'$5.2M', end:'Dec 2026', src:'Kalshi' },
-        { q:'BRICS common currency announced?',                 yes:12, vol:'$1.6M', end:'Dec 2026', src:'Polymarket' },
-        { q:'NATO adds new member state in 2026?',              yes:26, vol:'$740K',  end:'Dec 2026', src:'Kalshi' },
-        { q:'Iran new nuclear deal framework by 2026?',         yes:15, vol:'$980K',  end:'Dec 2026', src:'Polymarket' },
-        { q:'Major state-sponsored cyber attack on Western infrastructure?', yes:42, vol:'$2.3M', end:'Dec 2026', src:'Kalshi' },
+        { q:'Ukraine ceasefire agreement signed in 2026?',      yes:34, d7:+4, vol:'$7.8M', end:'Dec 2026', src:'Polymarket' },
+        { q:'China–Taiwan military escalation in 2026?',        yes:8,  d7:-1, vol:'$5.2M', end:'Dec 2026', src:'Kalshi' },
+        { q:'BRICS common currency announced?',                 yes:12, d7:0,  vol:'$1.6M', end:'Dec 2026', src:'Polymarket' },
+        { q:'NATO adds new member state in 2026?',              yes:26, d7:+3, vol:'$740K',  end:'Dec 2026', src:'Kalshi' },
+        { q:'Iran new nuclear deal framework by 2026?',         yes:15, d7:-2, vol:'$980K',  end:'Dec 2026', src:'Polymarket' },
+        { q:'Major state-sponsored cyber attack on Western infrastructure?', yes:42, d7:+6, vol:'$2.3M', end:'Dec 2026', src:'Kalshi' },
     ],
     'climate': [
-        { q:'2026 hottest year on record?',                      yes:68, vol:'$3.1M', end:'Dec 2026', src:'Kalshi' },
-        { q:'Oil price below $55/barrel in 2026?',               yes:19, vol:'$1.5M', end:'Dec 2026', src:'Polymarket' },
-        { q:'Any country hits 80%+ renewable electricity?',      yes:24, vol:'$870K',  end:'Dec 2026', src:'Kalshi' },
-        { q:'US rejoins or strengthens Paris Climate commitments?',yes:41, vol:'$1.2M', end:'Dec 2026', src:'Polymarket' },
-        { q:'Category 5+ hurricane hits US mainland in 2026?',   yes:36, vol:'$2.8M', end:'Nov 2026', src:'Kalshi' },
-        { q:'Nuclear fusion net-energy milestone repeated?',     yes:52, vol:'$1.9M', end:'Dec 2026', src:'Polymarket' },
+        { q:'2026 hottest year on record?',                      yes:68, d7:+2, vol:'$3.1M', end:'Dec 2026', src:'Kalshi' },
+        { q:'Oil price below $55/barrel in 2026?',               yes:19, d7:-3, vol:'$1.5M', end:'Dec 2026', src:'Polymarket' },
+        { q:'Any country hits 80%+ renewable electricity?',      yes:24, d7:+1, vol:'$870K',  end:'Dec 2026', src:'Kalshi' },
+        { q:'US rejoins or strengthens Paris Climate commitments?',yes:41, d7:-5, vol:'$1.2M', end:'Dec 2026', src:'Polymarket' },
+        { q:'Category 5+ hurricane hits US mainland in 2026?',   yes:36, d7:0,  vol:'$2.8M', end:'Nov 2026', src:'Kalshi' },
+        { q:'Nuclear fusion net-energy milestone repeated?',     yes:52, d7:+3, vol:'$1.9M', end:'Dec 2026', src:'Polymarket' },
     ],
     'science': [
-        { q:'New pandemic-level pathogen declared by WHO?',      yes:9,  vol:'$4.4M', end:'Dec 2026', src:'Kalshi' },
-        { q:'Alzheimer\'s treatment with 50%+ efficacy approved?',yes:22, vol:'$1.8M', end:'Dec 2026', src:'Polymarket' },
-        { q:'SpaceX Starship achieves orbital refueling?',       yes:61, vol:'$3.6M', end:'Dec 2026', src:'Kalshi' },
-        { q:'CRISPR therapy FDA-approved for cancer treatment?',  yes:33, vol:'$2.1M', end:'Dec 2026', src:'Polymarket' },
-        { q:'GLP-1 drugs approved for new non-obesity indication?',yes:74, vol:'$1.4M', end:'Dec 2026', src:'Kalshi' },
-        { q:'Mars sample return mission launches?',              yes:14, vol:'$680K',  end:'Dec 2026', src:'Polymarket' },
+        { q:'New pandemic-level pathogen declared by WHO?',      yes:9,  d7:-1, vol:'$4.4M', end:'Dec 2026', src:'Kalshi' },
+        { q:'Alzheimer\'s treatment with 50%+ efficacy approved?',yes:22, d7:+3, vol:'$1.8M', end:'Dec 2026', src:'Polymarket' },
+        { q:'SpaceX Starship achieves orbital refueling?',       yes:61, d7:+5, vol:'$3.6M', end:'Dec 2026', src:'Kalshi' },
+        { q:'CRISPR therapy FDA-approved for cancer treatment?',  yes:33, d7:-2, vol:'$2.1M', end:'Dec 2026', src:'Polymarket' },
+        { q:'GLP-1 drugs approved for new non-obesity indication?',yes:74, d7:+1, vol:'$1.4M', end:'Dec 2026', src:'Kalshi' },
+        { q:'Mars sample return mission launches?',              yes:14, d7:0,  vol:'$680K',  end:'Dec 2026', src:'Polymarket' },
     ],
 };
 
@@ -547,13 +583,31 @@ async function fetchPolymarketData(tag) {
         if (!res.ok) throw new Error(res.status);
         const markets = await res.json();
         if (!markets.length) throw new Error('empty');
-        return markets.map(m => {
+        // Fetch 7d history for each market in parallel
+        const results = await Promise.all(markets.map(async m => {
             const prices = JSON.parse(m.outcomePrices || '["0.5","0.5"]');
             const yes = Math.round(parseFloat(prices[0]) * 100);
             const vol = m.volume ? formatVolume(m.volume) : '—';
             const end = m.endDate ? new Date(m.endDate).toLocaleDateString('en',{month:'short',year:'numeric'}) : '—';
-            return { q: m.question, yes, vol, end, src:'Polymarket', live:true, url:`https://polymarket.com/event/${m.slug}` };
-        });
+            let d7 = null;
+            try {
+                const clobId = m.clobTokenIds ? JSON.parse(m.clobTokenIds)[0] : null;
+                if (clobId) {
+                    const hUrl = `https://clob.polymarket.com/prices-history?market=${clobId}&interval=1w&fidelity=1440`;
+                    const hRes = await fetch(hUrl, { signal: AbortSignal.timeout(4000) });
+                    if (hRes.ok) {
+                        const hist = await hRes.json();
+                        if (hist.history && hist.history.length >= 2) {
+                            const oldest = parseFloat(hist.history[0].p);
+                            const newest = parseFloat(hist.history[hist.history.length - 1].p);
+                            d7 = Math.round((newest - oldest) * 100);
+                        }
+                    }
+                }
+            } catch(e) { /* history fetch failed, d7 stays null */ }
+            return { q: m.question, yes, d7, vol, end, src:'Polymarket', live:true, url:`https://polymarket.com/event/${m.slug}` };
+        }));
+        return results;
     } catch(e) {
         console.warn(`Polymarket fetch failed for "${tag}":`, e.message);
         return null;
@@ -581,6 +635,7 @@ function renderETFs(dataArr) {
 
         const sparkData = d.sparkline || generateSparkline(d.price, d.changePct);
         const canvasId = `spark-${i}`;
+        const rangePos = d.dayHigh !== d.dayLow ? ((d.price - d.dayLow) / (d.dayHigh - d.dayLow) * 100).toFixed(1) : 50;
 
         const card = document.createElement('div');
         card.className = 'etf-card';
@@ -590,25 +645,33 @@ function renderETFs(dataArr) {
                 <span class="etf-ticker">${etf.ticker}</span>
             </div>
             <div class="etf-price">${etf.currency}${d.price.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-            <span class="etf-change ${up?'up':'down'}">${arrow} ${up?'+':''}${d.changePct.toFixed(2)}%
-                <span class="info-tip" style="margin-left:4px" data-tip="Daily change vs yesterday's close (Prev). Green = up, Red = down."><span class="info-dot">?</span></span>
-            </span>
+            <span class="etf-change ${up?'up':'down'}">${arrow} ${up?'+':''}${d.changePct.toFixed(2)}% <span class="etf-day-label">Day</span></span>
             <div class="sparkline-wrap"><canvas id="${canvasId}"></canvas></div>
+            <div class="etf-range">
+                <span class="range-label">L <b>${etf.currency}${d.dayLow.toFixed(2)}</b></span>
+                <div class="range-track"><div class="range-dot" style="left:${rangePos}%"></div></div>
+                <span class="range-label">H <b>${etf.currency}${d.dayHigh.toFixed(2)}</b></span>
+            </div>
             <div class="etf-meta">
-                <span>Open <span class="info-tip" style="margin-right:2px" data-tip="Price at today's market open. Can differ from Prev Close due to overnight or pre-market trading."><span class="info-dot">?</span></span> <b>${etf.currency}${d.open?.toFixed(2) ?? '—'}</b></span>
-                <span>Prev <span class="info-tip" style="margin-right:2px" data-tip="Yesterday's closing price. This is the baseline used to calculate today's % change."><span class="info-dot">?</span></span> <b>${etf.currency}${d.prevClose?.toFixed(2) ?? '—'}</b></span>
-                ${d.ytdPct !== null && d.ytdPct !== undefined ? `<span>YTD <span class="info-tip" style="margin-right:2px" data-tip="Year-To-Date: total return since January 1st of this year."><span class="info-dot">?</span></span> <b style="color:${d.ytdPct>=0?'var(--green)':'var(--red)'}">${d.ytdPct>=0?'+':''}${d.ytdPct.toFixed(1)}%</b></span>` : ''}
+                <span>Open <b>${etf.currency}${d.open?.toFixed(2) ?? '—'}</b></span>
+                <span>Prev <b>${etf.currency}${d.prevClose?.toFixed(2) ?? '—'}</b></span>
+                ${d.ytdPct !== null && d.ytdPct !== undefined ? `<span>YTD <b style="color:${d.ytdPct>=0?'var(--green)':'var(--red)'}">${d.ytdPct>=0?'+':''}${d.ytdPct.toFixed(1)}%</b></span>` : ''}
             </div>
         `;
         grid.appendChild(card);
 
-        requestAnimationFrame(() => drawSparkline(canvasId, sparkData, up ? etf.color : 'var(--red)', up));
+        requestAnimationFrame(() => drawSparkline(canvasId, sparkData, etf.color, up));
     });
 }
 
 /* ═══════════════════════════════════════════════════════════
    SPARKLINE DRAWING
    ═══════════════════════════════════════════════════════════ */
+function hexToRgb(hex) {
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return `${r},${g},${b}`;
+}
+
 function drawSparkline(canvasId, data, color, isUp) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -632,7 +695,7 @@ function drawSparkline(canvasId, data, color, isUp) {
 
     // Gradient fill
     const grad = ctx.createLinearGradient(0, 0, 0, h);
-    const c = isUp ? '52,211,153' : '248,113,113';
+    const c = hexToRgb(color);
     grad.addColorStop(0, `rgba(${c},0.18)`);
     grad.addColorStop(1, `rgba(${c},0.0)`);
 
@@ -665,7 +728,7 @@ function drawSparkline(canvasId, data, color, isUp) {
         points[points.length-2].x, points[points.length-2].y,
         points[points.length-1].x, points[points.length-1].y
     );
-    ctx.strokeStyle = isUp ? '#34D399' : '#F87171';
+    ctx.strokeStyle = color;
     ctx.lineWidth = 2;
     ctx.stroke();
 
@@ -673,7 +736,7 @@ function drawSparkline(canvasId, data, color, isUp) {
     const last = points[points.length - 1];
     ctx.beginPath();
     ctx.arc(last.x, last.y, 3, 0, Math.PI * 2);
-    ctx.fillStyle = isUp ? '#34D399' : '#F87171';
+    ctx.fillStyle = color;
     ctx.fill();
 }
 
@@ -704,7 +767,8 @@ function renderThemeTabs() {
 function renderPredictions(items) {
     const grid = document.getElementById('predictionsGrid');
     grid.innerHTML = '';
-    items.forEach((item, i) => {
+    const sorted = [...items].sort((a, b) => Math.abs(b.d7 || 0) - Math.abs(a.d7 || 0));
+    sorted.forEach((item, i) => {
         const probClass = item.yes >= 60 ? 'prob-high' : item.yes >= 35 ? 'prob-mid' : 'prob-low';
         const barClass = item.yes >= 60 ? 'bar-high' : item.yes >= 35 ? 'bar-mid' : 'bar-low';
 
@@ -719,7 +783,7 @@ function renderPredictions(items) {
             <div class="pred-bar-section">
                 <div class="pred-probabilities">
                     <span class="pred-yes ${probClass}">${item.yes}% <span style="font-size:11px;font-weight:500;color:var(--text-muted)">Yes</span>
-                        <span class="info-tip" style="margin-left:4px" data-tip="Market-implied probability this event happens. Based on real money bets — not polls or opinions."><span class="info-dot">?</span></span>
+                        ${item.d7 !== null && item.d7 !== undefined ? `<span class="pred-delta ${item.d7 > 0 ? 'up' : item.d7 < 0 ? 'down' : 'flat'}">${item.d7 > 0 ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 10V2M6 2L2 6M6 2L10 6"/></svg>+' + item.d7 : item.d7 < 0 ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2V10M6 10L2 6M6 10L10 6"/></svg>' + item.d7 : '—'}pt</span>` : ''}
                     </span>
                     <span class="pred-no">${100 - item.yes}% No</span>
                 </div>
@@ -731,11 +795,8 @@ function renderPredictions(items) {
                 <span class="pred-volume">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
                     ${item.vol}
-                    <span class="info-tip" style="margin-left:2px" data-tip="Total trading volume — how much money has been wagered. Higher volume = more market confidence in the price."><span class="info-dot">?</span></span>
                 </span>
-                <span class="pred-end">Ends ${item.end}
-                    <span class="info-tip" style="margin-left:2px" data-tip="Resolution date — when the market closes and pays out based on the actual outcome."><span class="info-dot">?</span></span>
-                </span>
+                <span class="pred-end">Ends ${item.end}</span>
                 <span class="pred-source">${item.src}</span>
             </div>
         `;
@@ -812,6 +873,45 @@ window.addEventListener('resize', () => {
 });
 
 init();
+
+/* ═══════════════════════════════════════════════════════════
+   KEYBOARD NAVIGATION — ← → to switch themes
+   ═══════════════════════════════════════════════════════════ */
+document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        const idx = THEMES.findIndex(t => t.id === activeTheme);
+        const next = e.key === 'ArrowRight'
+            ? (idx + 1) % THEMES.length
+            : (idx - 1 + THEMES.length) % THEMES.length;
+        activeTheme = THEMES[next].id;
+        renderThemeTabs();
+        loadPredictions(activeTheme);
+    }
+});
+
+/* ═══════════════════════════════════════════════════════════
+   MARKET STATUS — reflects actual EU market hours (CET)
+   ═══════════════════════════════════════════════════════════ */
+function updateMarketStatus() {
+    const badge = document.getElementById('marketBadge');
+    if (!badge) return;
+    const now = new Date();
+    const cet = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+    const day = cet.getDay();
+    const mins = cet.getHours() * 60 + cet.getMinutes();
+    let open = false, label = 'Closed';
+    if (day >= 1 && day <= 5) {
+        if (mins >= 540 && mins < 1050) { open = true; label = 'Market Open'; }
+        else if (mins >= 480 && mins < 540) { label = 'Pre-market'; }
+    }
+    badge.className = 'live-badge' + (open ? '' : ' closed');
+    badge.innerHTML = open
+        ? '<span class="live-dot"></span> ' + label
+        : '<span class="closed-icon">◦</span> ' + label;
+}
+updateMarketStatus();
+setInterval(updateMarketStatus, 60000);
 
 /* ═══════════════════════════════════════════════════════════
    GLOBAL TOOLTIP — smart viewport-aware positioning
