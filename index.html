@@ -318,7 +318,7 @@
         background:var(--bg-elevated); color:var(--text-muted);
     }
 
-    /* 7d change badge (computed from CLOB price history) */
+    /* 3d change badge (computed from CLOB price history) */
     .pred-delta {
         display:inline-flex; align-items:center; gap:2px;
         font-size:11px; font-weight:600; padding:2px 7px;
@@ -401,14 +401,14 @@
 
 <!-- ═══ PREDICTION MARKETS ═══ -->
 <div class="themes-section">
-    <div class="section-label">Prediction Markets <span class="info-tip section-info" data-tip="Real-money markets ranked by activity. Yes % = probability. 7d = weekly change in pts (from CLOB price history). Vol = total money wagered. Use ← → keys to switch themes."><span class="info-dot">?</span></span></div>
+    <div class="section-label">Prediction Markets <span class="info-tip section-info" data-tip="Real-money markets ranked by variation & activity. Yes % = probability. 3d = 3-day change in pts (from CLOB price history). Vol = total money wagered. Sorted by absolute 3d variation. Use ← → keys to switch themes."><span class="info-dot">?</span></span></div>
     <div class="theme-tabs" id="themeTabs"></div>
     <div class="predictions-grid" id="predictionsGrid"></div>
 </div>
 
 <!-- ═══ FOOTER ═══ -->
 <footer class="footer">
-    <span>Data sources: Yahoo Finance, <a href="https://polymarket.com" target="_blank">Polymarket</a>, <a href="https://kalshi.com" target="_blank">Kalshi</a></span>
+    <span>Data sources: Yahoo Finance, <a href="https://polymarket.com" target="_blank">Polymarket</a></span>
     <span id="lastUpdated">Updating…</span>
 </footer>
 
@@ -443,7 +443,7 @@ async function corsProxyFetch(rawUrl, timeout = 10000) {
         try {
             const proxy = CORS_PROXIES[_lastWorkingProxy];
             const url = proxy.prefix + encodeURIComponent(rawUrl);
-            const res = await fetch(url, { signal: AbortSignal.timeout(timeout) });
+            const res = await fetch(url, { signal: AbortSignal.timeout(timeout), cache: 'no-store' });
             if (res.ok) {
                 const text = await res.text();
                 const trimmed = text.trimStart();
@@ -460,6 +460,7 @@ async function corsProxyFetch(rawUrl, timeout = 10000) {
             const res = await fetch(rawUrl, {
                 signal: AbortSignal.timeout(2500),
                 mode: 'cors',
+                cache: 'no-store',
             });
             if (res.ok) { _lastWorkingProxy = -1; return res; }
         } catch { /* expected CORS block, continue */ }
@@ -471,7 +472,7 @@ async function corsProxyFetch(rawUrl, timeout = 10000) {
         const proxy = CORS_PROXIES[i];
         try {
             const url = proxy.prefix + encodeURIComponent(rawUrl);
-            const res = await fetch(url, { signal: AbortSignal.timeout(timeout) });
+            const res = await fetch(url, { signal: AbortSignal.timeout(timeout), cache: 'no-store' });
             if (!res.ok) { errors.push(`${proxy.prefix}: HTTP ${res.status}`); continue; }
 
             /* Validate response body looks like JSON (not a redirect to a spam site) */
@@ -533,10 +534,12 @@ async function fetchETFData() {
     try {
         const promises = ETF_CONFIG.map(async (etf, i) => {
             const chartRawUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${etf.ticker}?range=1mo&interval=1d&includePrePost=false`;
+            const dayRawUrl   = `https://query1.finance.yahoo.com/v8/finance/chart/${etf.ticker}?range=1d&interval=1d&includePrePost=false`;
             const ytdRawUrl   = `https://query1.finance.yahoo.com/v8/finance/chart/${etf.ticker}?range=ytd&interval=1mo&includePrePost=false`;
 
-            const [chartRes, ytdRes] = await Promise.all([
+            const [chartRes, dayRes, ytdRes] = await Promise.all([
                 corsProxyFetch(chartRawUrl),
+                corsProxyFetch(dayRawUrl).catch(() => null),
                 corsProxyFetch(ytdRawUrl).catch(() => null),
             ]);
             if (!chartRes) throw new Error('No response');
@@ -545,7 +548,27 @@ async function fetchETFData() {
             const quotes = json.chart.result[0].indicators.quote[0];
             const closes = quotes.close.filter(c => c !== null);
             const price = meta.regularMarketPrice;
-            const prevClose = meta.chartPreviousClose || meta.previousClose;
+
+            /* Daily metrics from range=1d (chartPreviousClose = yesterday's close) */
+            let prevClose, open;
+            try {
+                if (dayRes) {
+                    const dayJson = await dayRes.json();
+                    const dayMeta = dayJson.chart.result[0].meta;
+                    const dayQuotes = dayJson.chart.result[0].indicators.quote[0];
+                    prevClose = dayMeta.chartPreviousClose;
+                    const dayOpens = dayQuotes.open || [];
+                    open = dayOpens[dayOpens.length - 1] || price;
+                }
+            } catch { /* day fetch parse failed */ }
+
+            /* Fallback: derive from 1mo closes array */
+            if (!prevClose) {
+                const nn = closes;
+                prevClose = nn.length >= 2 ? nn[nn.length - 2] : nn[nn.length - 1] || price;
+            }
+            if (!open) open = price;
+
             const change = price - prevClose;
             const changePct = (change / prevClose) * 100;
 
@@ -561,7 +584,7 @@ async function fetchETFData() {
 
             return {
                 price, change, changePct,
-                prevClose, open: quotes.open?.find(o => o) || price,
+                prevClose, open,
                 dayHigh: meta.regularMarketDayHigh || price,
                 dayLow: meta.regularMarketDayLow || price,
                 sparkline: closes,
@@ -590,52 +613,52 @@ const THEMES = [
 
 const PREDICTIONS = {
     'politics': [
-        { q:'Republicans win 2026 US Senate majority?',        yes:62, d7:+3, vol:'$4.2M', end:'Nov 2026', src:'Polymarket' },
-        { q:'US federal AI regulation signed into law by 2026?',yes:38, d7:-2, vol:'$1.8M', end:'Dec 2026', src:'Kalshi' },
-        { q:'French snap election held in 2026?',              yes:21, d7:+5, vol:'$620K',  end:'Dec 2026', src:'Polymarket' },
-        { q:'Trump approval above 45% in March 2026?',         yes:44, d7:-1, vol:'$2.1M', end:'Mar 2026', src:'Kalshi' },
-        { q:'US government shutdown before July 2026?',         yes:33, d7:0,  vol:'$1.4M', end:'Jul 2026', src:'Polymarket' },
-        { q:'EU Digital Services Act major enforcement action?', yes:56, d7:+4, vol:'$480K',  end:'Dec 2026', src:'Kalshi' },
+        { q:'Republicans win 2026 US Senate majority?',        yes:62, d3:+3, vol:'$4.2M', end:'Nov 2026', src:'Polymarket' },
+        { q:'US federal AI regulation signed into law by 2026?',yes:38, d3:-2, vol:'$1.8M', end:'Dec 2026', src:'Kalshi' },
+        { q:'French snap election held in 2026?',              yes:21, d3:+5, vol:'$620K',  end:'Dec 2026', src:'Polymarket' },
+        { q:'Trump approval above 45% in March 2026?',         yes:44, d3:-1, vol:'$2.1M', end:'Mar 2026', src:'Kalshi' },
+        { q:'US government shutdown before July 2026?',         yes:33, d3:0,  vol:'$1.4M', end:'Jul 2026', src:'Polymarket' },
+        { q:'EU Digital Services Act major enforcement action?', yes:56, d3:+4, vol:'$480K',  end:'Dec 2026', src:'Kalshi' },
     ],
     'ai-tech': [
-        { q:'GPT-5 released before July 2026?',                yes:72, d7:+6, vol:'$8.1M', end:'Jul 2026', src:'Polymarket' },
-        { q:'NVIDIA market cap exceeds $5T in 2026?',          yes:41, d7:-3, vol:'$3.4M', end:'Dec 2026', src:'Kalshi' },
-        { q:'OpenAI IPO in 2026?',                             yes:55, d7:+2, vol:'$5.7M', end:'Dec 2026', src:'Polymarket' },
-        { q:'AI-generated movie wins major film festival?',     yes:18, d7:+1, vol:'$920K',  end:'Dec 2026', src:'Kalshi' },
-        { q:'Autonomous vehicles approved in 10+ US states?',   yes:34, d7:-4, vol:'$1.1M', end:'Dec 2026', src:'Polymarket' },
-        { q:'Major AI lab announces AGI-level benchmark?',      yes:28, d7:+7, vol:'$2.8M', end:'Dec 2026', src:'Kalshi' },
+        { q:'GPT-5 released before July 2026?',                yes:72, d3:+6, vol:'$8.1M', end:'Jul 2026', src:'Polymarket' },
+        { q:'NVIDIA market cap exceeds $5T in 2026?',          yes:41, d3:-3, vol:'$3.4M', end:'Dec 2026', src:'Kalshi' },
+        { q:'OpenAI IPO in 2026?',                             yes:55, d3:+2, vol:'$5.7M', end:'Dec 2026', src:'Polymarket' },
+        { q:'AI-generated movie wins major film festival?',     yes:18, d3:+1, vol:'$920K',  end:'Dec 2026', src:'Kalshi' },
+        { q:'Autonomous vehicles approved in 10+ US states?',   yes:34, d3:-4, vol:'$1.1M', end:'Dec 2026', src:'Polymarket' },
+        { q:'Major AI lab announces AGI-level benchmark?',      yes:28, d3:+7, vol:'$2.8M', end:'Dec 2026', src:'Kalshi' },
     ],
     'economy': [
-        { q:'Fed funds rate below 3.5% by end of 2026?',       yes:58, d7:+2, vol:'$6.3M', end:'Dec 2026', src:'Kalshi' },
-        { q:'S&P 500 reaches 7,000 before 2027?',              yes:45, d7:-5, vol:'$4.9M', end:'Dec 2026', src:'Polymarket' },
-        { q:'Bitcoin exceeds $150K in 2026?',                   yes:37, d7:+8, vol:'$12.4M', end:'Dec 2026', src:'Polymarket' },
-        { q:'US unemployment rises above 5%?',                  yes:22, d7:+1, vol:'$1.7M', end:'Dec 2026', src:'Kalshi' },
-        { q:'Eurozone inflation falls below 2% (sustained)?',   yes:49, d7:-2, vol:'$890K',  end:'Dec 2026', src:'Kalshi' },
-        { q:'US GDP growth exceeds 3% in 2026?',                yes:31, d7:0,  vol:'$1.3M', end:'Dec 2026', src:'Polymarket' },
+        { q:'Fed funds rate below 3.5% by end of 2026?',       yes:58, d3:+2, vol:'$6.3M', end:'Dec 2026', src:'Kalshi' },
+        { q:'S&P 500 reaches 7,000 before 2027?',              yes:45, d3:-5, vol:'$4.9M', end:'Dec 2026', src:'Polymarket' },
+        { q:'Bitcoin exceeds $150K in 2026?',                   yes:37, d3:+8, vol:'$12.4M', end:'Dec 2026', src:'Polymarket' },
+        { q:'US unemployment rises above 5%?',                  yes:22, d3:+1, vol:'$1.7M', end:'Dec 2026', src:'Kalshi' },
+        { q:'Eurozone inflation falls below 2% (sustained)?',   yes:49, d3:-2, vol:'$890K',  end:'Dec 2026', src:'Kalshi' },
+        { q:'US GDP growth exceeds 3% in 2026?',                yes:31, d3:0,  vol:'$1.3M', end:'Dec 2026', src:'Polymarket' },
     ],
     'geopolitics': [
-        { q:'Ukraine ceasefire agreement signed in 2026?',      yes:34, d7:+4, vol:'$7.8M', end:'Dec 2026', src:'Polymarket' },
-        { q:'China\u2013Taiwan military escalation in 2026?',        yes:8,  d7:-1, vol:'$5.2M', end:'Dec 2026', src:'Kalshi' },
-        { q:'BRICS common currency announced?',                 yes:12, d7:0,  vol:'$1.6M', end:'Dec 2026', src:'Polymarket' },
-        { q:'NATO adds new member state in 2026?',              yes:26, d7:+3, vol:'$740K',  end:'Dec 2026', src:'Kalshi' },
-        { q:'Iran new nuclear deal framework by 2026?',         yes:15, d7:-2, vol:'$980K',  end:'Dec 2026', src:'Polymarket' },
-        { q:'Major state-sponsored cyber attack on Western infrastructure?', yes:42, d7:+6, vol:'$2.3M', end:'Dec 2026', src:'Kalshi' },
+        { q:'Ukraine ceasefire agreement signed in 2026?',      yes:34, d3:+4, vol:'$7.8M', end:'Dec 2026', src:'Polymarket' },
+        { q:'China\u2013Taiwan military escalation in 2026?',        yes:8,  d3:-1, vol:'$5.2M', end:'Dec 2026', src:'Kalshi' },
+        { q:'BRICS common currency announced?',                 yes:12, d3:0,  vol:'$1.6M', end:'Dec 2026', src:'Polymarket' },
+        { q:'NATO adds new member state in 2026?',              yes:26, d3:+3, vol:'$740K',  end:'Dec 2026', src:'Kalshi' },
+        { q:'Iran new nuclear deal framework by 2026?',         yes:15, d3:-2, vol:'$980K',  end:'Dec 2026', src:'Polymarket' },
+        { q:'Major state-sponsored cyber attack on Western infrastructure?', yes:42, d3:+6, vol:'$2.3M', end:'Dec 2026', src:'Kalshi' },
     ],
     'climate': [
-        { q:'2026 hottest year on record?',                      yes:68, d7:+2, vol:'$3.1M', end:'Dec 2026', src:'Kalshi' },
-        { q:'Oil price below $55/barrel in 2026?',               yes:19, d7:-3, vol:'$1.5M', end:'Dec 2026', src:'Polymarket' },
-        { q:'Any country hits 80%+ renewable electricity?',      yes:24, d7:+1, vol:'$870K',  end:'Dec 2026', src:'Kalshi' },
-        { q:'US rejoins or strengthens Paris Climate commitments?',yes:41, d7:-5, vol:'$1.2M', end:'Dec 2026', src:'Polymarket' },
-        { q:'Category 5+ hurricane hits US mainland in 2026?',   yes:36, d7:0,  vol:'$2.8M', end:'Nov 2026', src:'Kalshi' },
-        { q:'Nuclear fusion net-energy milestone repeated?',     yes:52, d7:+3, vol:'$1.9M', end:'Dec 2026', src:'Polymarket' },
+        { q:'2026 hottest year on record?',                      yes:68, d3:+2, vol:'$3.1M', end:'Dec 2026', src:'Kalshi' },
+        { q:'Oil price below $55/barrel in 2026?',               yes:19, d3:-3, vol:'$1.5M', end:'Dec 2026', src:'Polymarket' },
+        { q:'Any country hits 80%+ renewable electricity?',      yes:24, d3:+1, vol:'$870K',  end:'Dec 2026', src:'Kalshi' },
+        { q:'US rejoins or strengthens Paris Climate commitments?',yes:41, d3:-5, vol:'$1.2M', end:'Dec 2026', src:'Polymarket' },
+        { q:'Category 5+ hurricane hits US mainland in 2026?',   yes:36, d3:0,  vol:'$2.8M', end:'Nov 2026', src:'Kalshi' },
+        { q:'Nuclear fusion net-energy milestone repeated?',     yes:52, d3:+3, vol:'$1.9M', end:'Dec 2026', src:'Polymarket' },
     ],
     'science': [
-        { q:'New pandemic-level pathogen declared by WHO?',      yes:9,  d7:-1, vol:'$4.4M', end:'Dec 2026', src:'Kalshi' },
-        { q:'Alzheimer\'s treatment with 50%+ efficacy approved?',yes:22, d7:+3, vol:'$1.8M', end:'Dec 2026', src:'Polymarket' },
-        { q:'SpaceX Starship achieves orbital refueling?',       yes:61, d7:+5, vol:'$3.6M', end:'Dec 2026', src:'Kalshi' },
-        { q:'CRISPR therapy FDA-approved for cancer treatment?',  yes:33, d7:-2, vol:'$2.1M', end:'Dec 2026', src:'Polymarket' },
-        { q:'GLP-1 drugs approved for new non-obesity indication?',yes:74, d7:+1, vol:'$1.4M', end:'Dec 2026', src:'Kalshi' },
-        { q:'Mars sample return mission launches?',              yes:14, d7:0,  vol:'$680K',  end:'Dec 2026', src:'Polymarket' },
+        { q:'New pandemic-level pathogen declared by WHO?',      yes:9,  d3:-1, vol:'$4.4M', end:'Dec 2026', src:'Kalshi' },
+        { q:'Alzheimer\'s treatment with 50%+ efficacy approved?',yes:22, d3:+3, vol:'$1.8M', end:'Dec 2026', src:'Polymarket' },
+        { q:'SpaceX Starship achieves orbital refueling?',       yes:61, d3:+5, vol:'$3.6M', end:'Dec 2026', src:'Kalshi' },
+        { q:'CRISPR therapy FDA-approved for cancer treatment?',  yes:33, d3:-2, vol:'$2.1M', end:'Dec 2026', src:'Polymarket' },
+        { q:'GLP-1 drugs approved for new non-obesity indication?',yes:74, d3:+1, vol:'$1.4M', end:'Dec 2026', src:'Kalshi' },
+        { q:'Mars sample return mission launches?',              yes:14, d3:0,  vol:'$680K',  end:'Dec 2026', src:'Polymarket' },
     ],
 };
 
@@ -709,22 +732,16 @@ async function fetchPolymarketData(tag) {
             return activeMarkets.length > 0;
         });
 
-        /* ── Score each event by "interestingness" ──
-           Primary signal: 24h volume (concrete, always accurate).
-           Secondary: total volume as tiebreaker.
-           Avoid stale mega-markets with zero recent activity. */
+        /* ── Initial ranking by volume to select candidates ── */
         allEvents.forEach(e => {
             const vol24 = e.volume24hr || 0;
             const volTotal = e.volume || 0;
-            /* Score: 70% recent 24h volume + 30% total volume (both log-scaled) */
-            e._score = (Math.log10(vol24 + 1) * 70) + (Math.log10(volTotal + 1) * 30);
+            e._volScore = (Math.log10(vol24 + 1) * 70) + (Math.log10(volTotal + 1) * 30);
         });
+        allEvents.sort((a, b) => (b._volScore || 0) - (a._volScore || 0));
 
-        /* Sort by interestingness score */
-        allEvents.sort((a, b) => (b._score || 0) - (a._score || 0));
-
-        /* Take top 6 */
-        allEvents = allEvents.slice(0, 6);
+        /* Take top 15 candidates (we'll narrow to 6 after fetching 3d variation) */
+        allEvents = allEvents.slice(0, 15);
 
         if (allEvents.length === 0) return null;
 
@@ -775,7 +792,8 @@ async function fetchPolymarketData(tag) {
                 yes = Math.round(parseFloat(prices[0]) * 100);
             } catch { yes = 50; }
 
-            const vol = formatVolume(event.volume || parseFloat(topMarket.volume) || 0);
+            const volRaw = event.volume || parseFloat(topMarket.volume) || 0;
+            const vol = formatVolume(volRaw);
             const endDate = event.endDate || topMarket.endDate;
             const end = endDate
                 ? new Date(endDate).toLocaleDateString('en', { month:'short', year:'numeric' })
@@ -789,14 +807,34 @@ async function fetchPolymarketData(tag) {
             } catch {}
 
             return {
-                q, yes, d7: null, vol, end, _tokenId,
+                q, yes, d3: null, vol, end, _tokenId, _volRaw: volRaw,
                 src: 'Polymarket',
                 live: true,
                 url: `https://polymarket.com/event/${event.slug}`,
             };
         }).filter(Boolean);
 
-        return items.length >= 2 ? items : null;
+        /* ── Fetch 3d CLOB deltas for all candidates in parallel ── */
+        await Promise.all(items.map(async (item) => {
+            if (!item._tokenId) return;
+            item.d3 = await fetchClobPriceChange(item._tokenId);
+        }));
+
+        /* ── Score by variation (primary) + volume (secondary) ──
+           Variation gets ~60% weight, volume ~40%. Items without
+           delta data fall back to volume-only scoring. */
+        items.forEach(item => {
+            const absDelta = Math.abs(item.d3 || 0);
+            const volLog = Math.log10((item._volRaw || 0) + 1);
+            item._score = (absDelta * 5) + (volLog * 2);
+        });
+        items.sort((a, b) => (b._score || 0) - (a._score || 0));
+
+        /* Take top 6 */
+        const top = items.slice(0, 6);
+        top.forEach(it => { delete it._volRaw; delete it._score; });
+
+        return top.length >= 2 ? top : null;
     } catch (e) {
         console.warn(`Polymarket fetch failed for "${tag}":`, e.message);
         return null;
@@ -809,9 +847,9 @@ function formatVolume(v) {
     return '$' + v;
 }
 
-/* Fetch ACTUAL 7d price change from CLOB price-history API.
+/* Fetch ACTUAL 3d price change from CLOB price-history API.
    Returns integer percentage-point change (e.g. +3 means rose 3 pts), or null on failure.
-   Uses fidelity=1440 → ~7 data points (one per day over a week). */
+   Fetches 1 week of daily data, then picks the point closest to 3 days ago. */
 async function fetchClobPriceChange(tokenId) {
     try {
         const url = `https://clob.polymarket.com/prices-history?market=${tokenId}&interval=1w&fidelity=1440`;
@@ -819,9 +857,13 @@ async function fetchClobPriceChange(tokenId) {
         const data = await res.json();
         const history = data?.history;
         if (!history || history.length < 2) return null;
-        const first = parseFloat(history[0].p);
-        const last  = parseFloat(history[history.length - 1].p);
-        return Math.round((last - first) * 100);
+        const last = parseFloat(history[history.length - 1].p);
+        /* Find the data point closest to 3 days ago */
+        const threeDaysAgo = Date.now() / 1000 - 3 * 86400;
+        const ref = history.reduce((best, pt) =>
+            Math.abs(pt.t - threeDaysAgo) < Math.abs(best.t - threeDaysAgo) ? pt : best
+        );
+        return Math.round((last - parseFloat(ref.p)) * 100);
     } catch { return null; }
 }
 
@@ -978,7 +1020,7 @@ function renderThemeTabs() {
 function renderPredictions(items) {
     const grid = document.getElementById('predictionsGrid');
     grid.innerHTML = '';
-    const sorted = [...items].sort((a, b) => Math.abs(b.d7 || 0) - Math.abs(a.d7 || 0));
+    const sorted = [...items].sort((a, b) => Math.abs(b.d3 || 0) - Math.abs(a.d3 || 0));
     sorted.forEach((item, i) => {
         const probClass = item.yes >= 60 ? 'prob-high' : item.yes >= 35 ? 'prob-mid' : 'prob-low';
         const barClass = item.yes >= 60 ? 'bar-high' : item.yes >= 35 ? 'bar-mid' : 'bar-low';
@@ -989,11 +1031,11 @@ function renderPredictions(items) {
         if (item.url) card.style.cursor = 'pointer';
         if (item.url) card.onclick = () => window.open(item.url, '_blank');
 
-        /* 7d delta badge — accurate, computed from CLOB price history */
-        const deltaBadge = (item.d7 !== null && item.d7 !== undefined)
-            ? `<span class="pred-delta ${item.d7 > 0 ? 'up' : item.d7 < 0 ? 'down' : 'flat'}">${
-                item.d7 > 0 ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 10V2M6 2L2 6M6 2L10 6"/></svg>+' + item.d7
-                : item.d7 < 0 ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2V10M6 10L2 6M6 10L10 6"/></svg>' + item.d7
+        /* 3d delta badge — accurate, computed from CLOB price history */
+        const deltaBadge = (item.d3 !== null && item.d3 !== undefined)
+            ? `<span class="pred-delta ${item.d3 > 0 ? 'up' : item.d3 < 0 ? 'down' : 'flat'}">${
+                item.d3 > 0 ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 10V2M6 2L2 6M6 2L10 6"/></svg>+' + item.d3
+                : item.d3 < 0 ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2V10M6 10L2 6M6 10L10 6"/></svg>' + item.d3
                 : '\u2014'
               }pt</span>`
             : '';
@@ -1057,15 +1099,15 @@ async function loadPredictions(themeId, { force = false, silent = false } = {}) 
         renderPredictions(cached.items);
         if (age < PRED_CACHE_TTL) {
             /* Fresh enough — but stream in missing CLOB deltas if needed */
-            const needDeltas = cached.items.some(it => it._tokenId && it.d7 === null);
+            const needDeltas = cached.items.some(it => it._tokenId && it.d3 === null);
             if (needDeltas) {
-                cached.items.forEach(async (item, idx) => {
-                    if (!item._tokenId || item.d7 !== null) return;
-                    const d7 = await fetchClobPriceChange(item._tokenId);
-                    item.d7 = d7; // persist even if user switched away
-                    if (myAbort.signal.aborted) return; // only skip DOM patch
-                    if (activeTheme === themeId) patchDeltaBadge(idx, item);
-                });
+                await Promise.all(cached.items.map(async (item) => {
+                    if (!item._tokenId || item.d3 !== null) return;
+                    item.d3 = await fetchClobPriceChange(item._tokenId);
+                }));
+                if (!myAbort.signal.aborted && activeTheme === themeId) {
+                    renderPredictions(cached.items);
+                }
             }
             schedulePreload(themeId);
             return;
@@ -1097,53 +1139,15 @@ async function loadPredictions(themeId, { force = false, silent = false } = {}) 
     if (isLive) console.log(`[HQ] Predictions "${themeId}": LIVE ✓ (${items.length} items)`);
     else console.warn(`[HQ] Predictions "${themeId}": using mock fallback`);
 
-    /* Render immediately (d7 = null, badges will appear later) */
+    /* Render immediately (d3 already populated for live data) */
     _predCache[themeId] = { items, ts: Date.now() };
     if (activeTheme === themeId) renderPredictions(items);
 
-    /* ── Phase 3: Stream in 7d deltas from CLOB (non-blocking) ── */
-    if (isLive) {
-        const clobPromises = items.map(async (item, idx) => {
-            if (!item._tokenId) return;
-            const d7 = await fetchClobPriceChange(item._tokenId);
-            item.d7 = d7; // persist even if user switched away
-            if (myAbort.signal.aborted) return; // only skip DOM patch
-            if (activeTheme === themeId) patchDeltaBadge(idx, item);
-        });
-        await Promise.all(clobPromises);
-        if (!myAbort.signal.aborted) {
-            _predCache[themeId] = { items, ts: Date.now() };
-        }
-    }
+    /* ── Phase 3: For live data, d3 is already fetched in fetchPolymarketData.
+       For mock fallback, d3 is inline. No streaming needed. ── */
 
     /* ── Phase 4: Preload adjacent themes ── */
     if (!myAbort.signal.aborted) schedulePreload(themeId);
-}
-
-/* Patch a single d7 badge into an already-rendered card (avoids full re-render) */
-function patchDeltaBadge(cardIndex, item) {
-    const grid = document.getElementById('predictionsGrid');
-    /* Cards are sorted by |d7|, but during streaming d7 arrives incrementally.
-       We re-sort and re-render once all deltas are in. For now, patch in-place. */
-    const cards = grid.querySelectorAll('.pred-card');
-    const card = cards[cardIndex];
-    if (!card) return;
-    const yesSpan = card.querySelector('.pred-yes');
-    if (!yesSpan) return;
-    /* Remove any existing delta badge */
-    const old = yesSpan.querySelector('.pred-delta');
-    if (old) old.remove();
-    if (item.d7 === null || item.d7 === undefined) return;
-    const cls = item.d7 > 0 ? 'up' : item.d7 < 0 ? 'down' : 'flat';
-    const arrow = item.d7 > 0
-        ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 10V2M6 2L2 6M6 2L10 6"/></svg>+' + item.d7
-        : item.d7 < 0
-        ? '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2V10M6 10L2 6M6 10L10 6"/></svg>' + item.d7
-        : '\u2014';
-    const badge = document.createElement('span');
-    badge.className = `pred-delta ${cls}`;
-    badge.innerHTML = `${arrow}pt`;
-    yesSpan.appendChild(badge);
 }
 
 /* Preload adjacent themes in background (idle priority) */
