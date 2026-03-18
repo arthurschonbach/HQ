@@ -396,7 +396,7 @@
 </header>
 
 <!-- ═══ ETF SECTION ═══ -->
-<div class="section-label">Market ETFs <span class="info-tip section-info" data-tip="EUR ETFs tracking major indices. Day % = change vs yesterday's close. L/H = today's low–high range with price position. Open/Prev = today's open & yesterday's close. YTD = since Jan 1. Chart = 1-month."><span class="info-dot">?</span></span></div>
+<div class="section-label">Market ETFs <span class="info-tip section-info" data-tip="EUR ETFs tracking major indices. Day % = change vs yesterday's close. 30D = change vs price ~30 days ago. L/H = today's low–high range with price position. Open/Prev = today's open & yesterday's close. YTD = since Jan 1. Chart = 1-month."><span class="info-dot">?</span></span></div>
 <div class="etf-grid" id="etfGrid"></div>
 
 <!-- ═══ PREDICTION MARKETS ═══ -->
@@ -493,11 +493,38 @@ function generateSparkline(basePrice, changePct, points = 30) {
 /* Fallback ETF data (realistic as of March 2026 estimates) */
 function getMockETFData() {
     return [
-        { price:89.54,  change:0.38,  changePct:0.43, open:89.16, prevClose:89.16, dayHigh:89.92, dayLow:88.80, ytdPct:5.8 },
-        { price:42.18,  change:0.34,  changePct:0.81, open:41.90, prevClose:41.84, dayHigh:42.30, dayLow:41.72, ytdPct:9.2 },
-        { price:27.14,  change:-0.05, changePct:-0.18, open:27.22, prevClose:27.19, dayHigh:27.35, dayLow:27.01, ytdPct:3.1 },
-        { price:33.61,  change:0.11,  changePct:0.33, open:33.48, prevClose:33.50, dayHigh:33.78, dayLow:33.30, ytdPct:2.4 },
+        { price:89.54,  change:0.38,  changePct:0.43, open:89.16, prevClose:89.16, dayHigh:89.92, dayLow:88.80, ytdPct:5.8,  change30dPct:2.9 },
+        { price:42.18,  change:0.34,  changePct:0.81, open:41.90, prevClose:41.84, dayHigh:42.30, dayLow:41.72, ytdPct:9.2,  change30dPct:4.6 },
+        { price:27.14,  change:-0.05, changePct:-0.18, open:27.22, prevClose:27.19, dayHigh:27.35, dayLow:27.01, ytdPct:3.1,  change30dPct:-1.2 },
+        { price:33.61,  change:0.11,  changePct:0.33, open:33.48, prevClose:33.50, dayHigh:33.78, dayLow:33.30, ytdPct:2.4,  change30dPct:1.7 },
     ];
+}
+
+function compute30dChangePct(timestamps, closes, currentPrice) {
+    if (!Array.isArray(timestamps) || !Array.isArray(closes) || !timestamps.length || !closes.length) return null;
+
+    const points = [];
+    for (let i = 0; i < Math.min(timestamps.length, closes.length); i++) {
+        const close = closes[i];
+        if (close === null || Number.isNaN(close)) continue;
+        points.push({ t: timestamps[i], c: close });
+    }
+    if (points.length < 2) return null;
+
+    const latestTs = points[points.length - 1].t;
+    const targetTs = latestTs - 30 * 86400;
+
+    // Use the last available close at or before the 30-day target.
+    let basePoint = points.find(p => p.t >= targetTs) || points[0];
+    for (let i = points.length - 1; i >= 0; i--) {
+        if (points[i].t <= targetTs) {
+            basePoint = points[i];
+            break;
+        }
+    }
+
+    if (!basePoint?.c) return null;
+    return ((currentPrice - basePoint.c) / basePoint.c) * 100;
 }
 
 /* Fetch real ETF data from Yahoo Finance — single YTD request per ETF,
@@ -510,6 +537,7 @@ async function fetchETFData() {
             if (!res) throw new Error('No response');
             const json = await res.json();
             const meta   = json.chart.result[0].meta;
+            const timestamps = json.chart.result[0].timestamp || [];
             const quotes = json.chart.result[0].indicators.quote[0];
             const allCloses = (quotes.close || []).filter(c => c !== null);
             const price = meta.regularMarketPrice;
@@ -526,6 +554,7 @@ async function fetchETFData() {
 
             const ytdStart = meta.chartPreviousClose;
             const ytdPct = ytdStart ? ((price - ytdStart) / ytdStart) * 100 : null;
+            const change30dPct = compute30dChangePct(timestamps, quotes.close || [], price);
 
             const sparkline = allCloses.slice(-22);
 
@@ -536,6 +565,7 @@ async function fetchETFData() {
                 dayLow:  meta.regularMarketDayLow  || price,
                 sparkline,
                 ytdPct,
+                change30dPct,
                 live: true,
             };
         });
@@ -848,6 +878,7 @@ function renderETFs(dataArr) {
             <div class="etf-meta">
                 <span>Open <b>${etf.currency}${d.open?.toFixed(2) ?? '—'}</b></span>
                 <span>Prev <b>${etf.currency}${d.prevClose?.toFixed(2) ?? '—'}</b></span>
+                ${d.change30dPct !== null && d.change30dPct !== undefined ? `<span>30D <b style="color:${d.change30dPct>=0?'var(--green)':'var(--red)'}">${d.change30dPct>=0?'+':''}${d.change30dPct.toFixed(1)}%</b></span>` : ''}
                 ${d.ytdPct !== null && d.ytdPct !== undefined ? `<span>YTD <b style="color:${d.ytdPct>=0?'var(--green)':'var(--red)'}">${d.ytdPct>=0?'+':''}${d.ytdPct.toFixed(1)}%</b></span>` : ''}
             </div>
         `;
